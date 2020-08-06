@@ -1,0 +1,9 @@
+---
+deployment:
+    tasks:
+        - export DEPLOYPATH=/home/user/public_html/
+        - /bin/cp index.html $DEPLOYPATH
+        - /bin/cp LICENSE.txt $DEPLOYPATH
+        - /bin/cp README.txt $DEPLOYPATH
+        - /bin/cp -R assets $DEPLOYPATH
+        - /bin/cp -R images $DEPLOYPATH
