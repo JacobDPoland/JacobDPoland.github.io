@@ -1,0 +1,1 @@
+All of this code is my own with help from educational sources such as freeCodeCamp and W3Schools.
