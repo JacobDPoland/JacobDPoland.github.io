@@ -46,6 +46,15 @@
     color: white;
 }
 
+#sec1 {
+    margin-top: 10em;
+    margin-left: 15vw;
+}
+
+#sec1 img {
+    width: 16em;
+    border-radius: 10px;
+}
 
 footer {
     position: absolute;
