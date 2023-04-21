@@ -49,8 +49,14 @@
 #sec1 {
     margin-top: 10em;
     margin-left: 18vw;
+    margin-right: 18vw;
+    position: relative;
+    padding-bottom: 7.5em;
+}
+
+#sec1 figure {
     width: 30vw;
-    border: 1px solid red;
+    display: inline-block;
 }
 
 #sec1 figure img {
@@ -61,6 +67,21 @@
 #sec1 figcaption {
     text-align: center;
 }
+
+#intro {
+    display: inline-block;
+    width: 30vw;
+    margin-left: 3vw;
+    position: absolute;
+    top: 2;
+    text-align: center;
+}
+
+#intro h1 {
+    text-align: center;
+    padding-bottom: 0.2em;
+}
+
 
 footer {
     position: absolute;
