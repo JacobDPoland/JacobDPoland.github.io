@@ -6,18 +6,19 @@
     <meta name="description" content="Jacob Poland - Cybersecurity and Software Development Portfolio">
     <title>Jacob Poland | Cybersecurity & Software Development</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
     <script defer src="script.js"></script>
 </head>
 <body>
     <header>
-        <nav>
+        <button class="hamburger" onclick="toggleMenu()">☰</button>
+        <nav id="mobileNav">
             <ul>
-                <li><a href="#home">Home</a></li>
-                <li><a href="#about">About Me</a></li>
-                <li><a href="#projects">Projects</a></li>
-                <li><a href="#cybersecurity">Cybersecurity</a></li>
-                <li><a href="#blog">Blog</a></li>
-                <li><a href="#contact">Contact</a></li>
+                <li><a href="#home" onclick="closeMenu()">Home</a></li>
+                <li><a href="#about" onclick="closeMenu()">About Me</a></li>
+                <li><a href="#projects" onclick="closeMenu()">Projects</a></li>
+                <!-- <li><a href="#cybersecurity" onclick="closeMenu()">Cybersecurity</a></li> -->
+                <li><a href="#contact" onclick="closeMenu()">Contact</a></li>
             </ul>
         </nav>
     </header>
@@ -26,7 +27,7 @@
         <div class="hero">
             <h1>Hi, I'm Jacob Poland</h1>
             <p>A cybersecurity and software development enthusiast with a passion for ethical hacking, automation, and security operations.</p>
-            <a href="resume.pdf" class="btn">Download My Resume</a>
+            <a href="Jacob_Poland_Resume.pdf" class="btn" target="_blank">View My Resume</a>
             <a href="#contact" class="btn">Contact Me</a>
         </div>
     </section>
@@ -45,34 +46,48 @@
     <section id="projects">
         <h2>Projects & Experience</h2>
         <div class="project">
-            <h3>SMRT Vocab</h3>
-            <p>Language learning app, role as Configuration Manager.</p>
-            <a href="https://github.com/JacobDPoland/SMRT-Vocab">GitHub</a>
+            <h3>IT Technician Work</h3>
+            <p>I currently work for the Texas A&M University-Corpus Christi (TAMUCC) IT department. 
+                On average, I set up two university employee workstations per week. Over the past year, 
+                this has totaled to over 130 installations. On these installations, I frequently need to employ 
+                troubleshooting skills to ensure employee devices and applications function properly.
+                When I am not working on these duties, I work to automate record-keeping processes with Python and Batch scripts
+                to improve office productivity.
+            </p>
+            <p>
+                If you would like to learn more about my work with the TAMUCC IT department, feel free to <a href="#contact">contact me</a> or my supervisor <a href="https://www.tamucc.edu/files/php/views/faculty-details.php?profile=Christopher_Palfreyman" target="_blank">Christopher Palfreyman</a>
+            </p>
         </div>
         <div class="project">
-            <h3>IT Technician Work</h3>
-            <p>Automated record-keeping processes with Python and Batch scripts.</p>
+            <h3>SMRT Vocab</h3>
+            <p>To build this language learning app, I worked as a Configuration Manager and Software Engineer in a team of 6.</p> 
+            <p>
+                Visit our <a href="https://github.com/Inhuman-creation/SMRT-PROJECT">GitHub repository</a> to learn more about this project, download the desktop app, and view the source code, 
+            </p>
         </div>
         <div class="project">
             <h3>Island Waves News Web Design</h3>
             <p>Security and design improvements.</p>
         </div>
     </section>
-    
-    <section id="cybersecurity">
-        <h2>Cybersecurity Involvement</h2>
-        <p>TAMUCC Cyber Society participation, National Cyber League (NCL) preparation.</p>
-        <p>Tools: Burp Suite, Wireshark.</p>
-        <div class="research">
-            <h3>Security Research & CTF Write-ups</h3>
-            <p>Blog posts on cybersecurity concepts, Capture The Flag (CTF) challenges, and security research.</p>
-        </div>
-    </section>
-    
-    <section id="blog">
-        <h2>Blog</h2>
-        <p>Sharing cybersecurity insights, coding tutorials, and learning experiences.</p>
-    </section>
+    <!-- 
+        <section id="cybersecurity">
+            <h2>Cybersecurity Involvement</h2>
+            <p>TAMUCC Cyber Society participation, National Cyber League (NCL) preparation.</p>
+            <p>Tools: Burp Suite, Wireshark.</p>
+            <div class="research">
+                <h3>Security Research & CTF Write-ups</h3>
+                <p>Blog posts on cybersecurity concepts, Capture The Flag (CTF) challenges, and security research.</p>
+            </div>
+        </section>
+    -->
+
+    <!-- 
+        <section id="blog">
+            <h2>Blog</h2>
+            <p>Sharing cybersecurity insights, coding tutorials, and learning experiences.</p>
+        </section>
+    -->
     
     <section id="contact">
         <h2>Contact Me</h2>
@@ -84,7 +99,7 @@
         </form>
         <p>Email: JacobDPoland@gmail.com</p>
         <p>GitHub: <a href="https://github.com/JacobDPoland">github.com/JacobDPoland</a></p>
-        <p>LinkedIn: <a href="#">LinkedIn Profile (If Available)</a></p>
+        <p>LinkedIn: <a href="https://www.linkedin.com/in/jacobdpoland/">in/JacobDPoland/</a></p>
     </section>
 </body>
 </html>
