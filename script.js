@@ -47,7 +47,7 @@ function draw() {
         const char = Math.random() > 0.5 ? "1" : "0";
 
         // Darker style: dark green text on black
-        ctx.fillStyle = "#002000"; // Green color
+        ctx.fillStyle = "#004000"; // Green color
         ctx.fillText(char, x, y);
 
         // Reset drop to top if it has gone off the bottom randomly

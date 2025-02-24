@@ -46,6 +46,10 @@ nav ul li a:hover {
 }
 .hero h1 {
     font-size: 2.5rem;
+    background-color: black;
+}
+.hero p {
+    background-color: black;
 }
 .hero .btn {
     display: inline-block;
