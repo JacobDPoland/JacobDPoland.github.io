@@ -34,7 +34,7 @@ let drops = Array.from({length: columns}, () => Math.floor(Math.random() * canva
 
 function draw() {
     // Draw a translucent black rectangle to create the fading trail effect.
-    ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
+    ctx.fillStyle = "rgba(0, 0, 0, 0.125)";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     ctx.font = fontSize + "px monospace";
@@ -47,7 +47,7 @@ function draw() {
         const char = Math.random() > 0.5 ? "1" : "0";
 
         // Darker style: dark green text on black
-        ctx.fillStyle = "#000900"; // Green color
+        ctx.fillStyle = "#002000"; // Green color
         ctx.fillText(char, x, y);
 
         // Reset drop to top if it has gone off the bottom randomly

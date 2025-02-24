@@ -78,11 +78,22 @@ section h2 {
 
 /* Projects */
 .project {
+    display: flex;
+    align-items: center;
     background: #1e1e1e;
     padding: 20px;
     border-radius: 5px;
     margin-bottom: 20px;
     box-shadow: 2px 2px 10px rgba(255, 255, 255, 0.1);
+}
+.project img {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+    margin-right: 20px;
+}
+.project-content {
+    flex: 1;
 }
 .project h3 {
     margin-bottom: 10px;
@@ -118,7 +129,6 @@ form button {
     background: #007a8e;
     cursor: pointer;
     color: white;
-    transition: background 0.3s;
 }
 form button:hover {
     background: #00adb5;
@@ -150,7 +160,7 @@ form button:hover {
     width: 100%;
     height: 100%;
     z-index: 0; /* Place the canvas behind other elements */
-    color: #000500;
+    pointer-events: none; /* Ensure the canvas does not interfere with other elements */
 }
 
 /* Responsive Design */
@@ -194,5 +204,16 @@ form button:hover {
         position: absolute;
         right: 20px;
         top: 15px;
+    }
+
+    .project {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .project img {
+        margin-right: 0;
+        margin-bottom: 20px;
+        width: 100%;
+        height: auto;
     }
 }
