@@ -112,11 +112,27 @@
             display: none;
             z-index: 10;
         }
+        .filter-info {
+            background-color: #fffde7;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #ffc107;
+        }
+        .rejected-scan {
+            color: #f44336;
+            font-style: italic;
+            font-size: 0.9em;
+        }
     </style>
 </head>
 <body>
     <h1>Barcode Scanner</h1>
     <p>Scan barcodes and QR codes directly from your device's camera.</p>
+    
+    <div class="filter-info">
+        <strong>Filter active:</strong> Only accepting barcodes that start with "15"
+    </div>
     
     <div class="controls">
         <button id="start-button">Start Scanner</button>
@@ -155,6 +171,8 @@
         let scanning = false;
         let scanHistory = JSON.parse(localStorage.getItem('barcodeHistory')) || [];
         let videoStream = null;
+        let lastScannedCode = null;
+        let lastScannedTime = 0;
         
         // Initialize scan history from localStorage
         function loadHistory() {
@@ -222,6 +240,22 @@
         
         function saveHistory() {
             localStorage.setItem('barcodeHistory', JSON.stringify(scanHistory));
+        }
+        
+        // Validate if the code starts with "15"
+        function isValidCode(code) {
+            return typeof code === 'string' && code.trim().startsWith('15');
+        }
+        
+        // Prevent duplicate scans within a short time period
+        function isDuplicateScan(code) {
+            const now = Date.now();
+            if (code === lastScannedCode && now - lastScannedTime < 5000) {
+                return true;
+            }
+            lastScannedCode = code;
+            lastScannedTime = now;
+            return false;
         }
         
         // Load scan history on page load
@@ -394,15 +428,23 @@
                     });
                     
                     if (code) {
-                        resultDiv.innerHTML = `<p>QR Code: ${code.data}</p>`;
-                        addToHistory('QR Code', code.data);
-                        
-                        // Pause scanning briefly after successful scan
-                        scanning = false;
-                        setTimeout(() => {
-                            scanning = true;
+                        if (isValidCode(code.data) && !isDuplicateScan(code.data)) {
+                            resultDiv.innerHTML = `<p>QR Code: ${code.data}</p>`;
+                            addToHistory('QR Code', code.data);
+                            
+                            // Pause scanning briefly after successful scan
+                            scanning = false;
+                            setTimeout(() => {
+                                scanning = true;
+                                requestAnimationFrame(processQR);
+                            }, 2000);
+                        } else if (!isValidCode(code.data)) {
+                            resultDiv.innerHTML = `<p class="rejected-scan">Rejected QR code: ${code.data} (doesn't start with 15)</p>`;
                             requestAnimationFrame(processQR);
-                        }, 2000);
+                        } else {
+                            // Just a duplicate scan, continue scanning
+                            requestAnimationFrame(processQR);
+                        }
                     } else {
                         requestAnimationFrame(processQR);
                     }
@@ -414,7 +456,7 @@
             // Start the scanning processes
             requestAnimationFrame(processQR);
             
-            // Initialize Quagga for barcode scanning
+            // Initialize Quagga for barcode scanning with higher frequency
             Quagga.init({
                 inputStream: {
                     name: "Live",
@@ -425,6 +467,7 @@
                         height: 600,
                     },
                 },
+                frequency: 5, // Scan more frequently
                 decoder: {
                     readers: [
                         "code_128_reader",
@@ -439,6 +482,12 @@
                     ],
                     multiple: false
                 },
+                locator: {
+                    patchSize: "medium",
+                    halfSample: true
+                },
+                numOfWorkers: 4,
+                locate: true
             }, function(err) {
                 if (err) {
                     console.error("Quagga initialization failed:", err);
@@ -452,14 +501,18 @@
                     
                     const code = result.codeResult.code;
                     if (code) {
-                        resultDiv.innerHTML = `<p>Barcode: ${code}</p>`;
-                        addToHistory('Barcode', code);
-                        
-                        // Pause scanning briefly after successful scan
-                        scanning = false;
-                        setTimeout(() => {
-                            scanning = true;
-                        }, 2000);
+                        if (isValidCode(code) && !isDuplicateScan(code)) {
+                            resultDiv.innerHTML = `<p>Barcode: ${code}</p>`;
+                            addToHistory('Barcode', code);
+                            
+                            // Pause scanning briefly after successful scan
+                            scanning = false;
+                            setTimeout(() => {
+                                scanning = true;
+                            }, 2000);
+                        } else if (!isValidCode(code)) {
+                            resultDiv.innerHTML = `<p class="rejected-scan">Rejected barcode: ${code} (doesn't start with 15)</p>`;
+                        }
                     }
                 });
             });
