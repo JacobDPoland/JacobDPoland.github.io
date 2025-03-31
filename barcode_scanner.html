@@ -538,7 +538,7 @@
             // Create CSV content
             const headers = 'Type,Data,Timestamp\n';
             const csvContent = scanHistory.map(item => 
-                `"${item.type}","${item.data}","${item.timestamp}"`
+                `"${item.type}"`
             ).join('\n');
             
             // Create and trigger download
@@ -558,7 +558,7 @@
         function exportToEmail() {
             // Create text content
             const textContent = scanHistory.map(item =>
-                `${item.type}: ${item.data} (${item.timestamp})`
+                `"${item.data}"`
             ).join('\n');
             
             // Create mailto link with subject and body
@@ -576,4 +576,3 @@
     </script>
 </body>
 </html>
-```html
