@@ -124,6 +124,17 @@
             font-style: italic;
             font-size: 0.9em;
         }
+        .export-controls {
+            margin-bottom: 15px;
+            text-align: right;
+        }
+        .export-btn {
+            background-color: #607d8b;
+            margin-left: 10px;
+        }
+        .export-btn:hover {
+            background-color: #455a64;
+        }
     </style>
 </head>
 <body>
@@ -152,6 +163,10 @@
     
     <div id="history">
         <h2>Scan History</h2>
+        <div class="export-controls">
+            <button id="export-csv" class="export-btn">Export to CSV</button>
+            <button id="export-email" class="export-btn">Send via Email</button>
+        </div>
         <div id="history-items"></div>
     </div>
 
@@ -517,6 +532,48 @@
                 });
             });
         }
+
+        // Export functions
+        function exportToCSV() {
+            // Create CSV content
+            const headers = 'Type,Data,Timestamp\n';
+            const csvContent = scanHistory.map(item => 
+                `"${item.type}","${item.data}","${item.timestamp}"`
+            ).join('\n');
+            
+            // Create and trigger download
+            const blob = new Blob([headers + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            
+            link.setAttribute('href', url);
+            link.setAttribute('download', `barcode-history-${new Date().toISOString().slice(0,10)}.csv`);
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function exportToEmail() {
+            // Create text content
+            const textContent = scanHistory.map(item =>
+                `${item.type}: ${item.data} (${item.timestamp})`
+            ).join('\n');
+            
+            // Create mailto link with subject and body
+            const subject = 'Barcode Scan History';
+            const body = `Barcode Scan History\n\n${textContent}`;
+            const mailtoLink = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+            
+            // Open default email client
+            window.location.href = mailtoLink;
+        }
+
+        // Add event listeners for export buttons
+        document.getElementById('export-csv').addEventListener('click', exportToCSV);
+        document.getElementById('export-email').addEventListener('click', exportToEmail);
     </script>
 </body>
 </html>
+```html
