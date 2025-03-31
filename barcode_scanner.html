@@ -57,6 +57,9 @@
         #refocus-button {
             background-color: #2196F3;
         }
+        #flashlight-button {
+            background-color: #ff9800;
+        }
         #history {
             margin-top: 30px;
             text-align: left;
@@ -135,6 +138,25 @@
         .export-btn:hover {
             background-color: #455a64;
         }
+        .manual-entry {
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+        #manual-input {
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            width: 200px;
+        }
+        #manual-submit {
+            background-color: #4CAF50;
+        }
+        #manual-input:invalid {
+            border-color: #f44336;
+        }
     </style>
 </head>
 <body>
@@ -149,6 +171,12 @@
         <button id="start-button">Start Scanner</button>
         <button id="stop-button" disabled>Stop Scanner</button>
         <button id="refocus-button" disabled>Refocus Camera</button>
+        <button id="flashlight-button" disabled>Turn On Flashlight</button>
+    </div>
+
+    <div class="manual-entry">
+        <input type="text" id="manual-input" placeholder="Enter code manually" pattern="15.*" title="Code must start with 15">
+        <button id="manual-submit">Add Code</button>
     </div>
     
     <div id="video-container" style="position: relative; display: none;">
@@ -177,6 +205,9 @@
         const startButton = document.getElementById('start-button');
         const stopButton = document.getElementById('stop-button');
         const refocusButton = document.getElementById('refocus-button');
+        const flashlightButton = document.getElementById('flashlight-button');
+        const manualInput = document.getElementById('manual-input');
+        const manualSubmit = document.getElementById('manual-submit');
         const refocusOverlay = document.getElementById('refocus-overlay');
         const videoContainer = document.getElementById('video-container');
         const video = document.getElementById('video');
@@ -188,6 +219,7 @@
         let videoStream = null;
         let lastScannedCode = null;
         let lastScannedTime = 0;
+        let flashlightOn = false;
         
         // Initialize scan history from localStorage
         function loadHistory() {
@@ -290,6 +322,42 @@
         refocusButton.addEventListener('click', () => {
             refocusCamera();
         });
+
+        // Flashlight toggle
+        flashlightButton.addEventListener('click', async () => {
+            if (!videoStream) return;
+            
+            const track = videoStream.getVideoTracks()[0];
+            const capabilities = track.getCapabilities();
+            
+            // Check if torch is supported
+            if (capabilities.torch) {
+                try {
+                    flashlightOn = !flashlightOn;
+                    await track.applyConstraints({
+                        advanced: [{ torch: flashlightOn }]
+                    });
+                    flashlightButton.textContent = flashlightOn ? 'Turn Off Flashlight' : 'Turn On Flashlight';
+                } catch (err) {
+                    console.error('Flashlight error:', err);
+                    alert('Failed to toggle flashlight');
+                }
+            } else {
+                alert('Sorry, your device doesn\'t support flashlight control');
+            }
+        });
+
+        // Handle manual code submission
+        manualSubmit.addEventListener('click', () => {
+            const code = manualInput.value.trim();
+            if (code && isValidCode(code)) {
+                addToHistory('Manual Entry', code);
+                resultDiv.innerHTML = `<p>Manual Entry: ${code}</p>`;
+                manualInput.value = '';
+            } else {
+                alert('Please enter a valid code (must start with 15)');
+            }
+        });
         
         function startScanner() {
             if (scanning) return;
@@ -298,6 +366,7 @@
             startButton.disabled = true;
             stopButton.disabled = false;
             refocusButton.disabled = false;
+            flashlightButton.disabled = false;
             
             // Start video stream
             const constraints = { 
@@ -317,6 +386,11 @@
                     video.play();
                     scanning = true;
                     
+                    // Check if flashlight is available
+                    const track = stream.getVideoTracks()[0];
+                    const capabilities = track.getCapabilities();
+                    flashlightButton.disabled = !capabilities.torch;
+
                     // Start scanning for barcodes and QR codes
                     scanBarcodes();
                 })
@@ -346,6 +420,9 @@
             startButton.disabled = false;
             stopButton.disabled = true;
             refocusButton.disabled = true;
+            flashlightButton.disabled = true;
+            flashlightOn = false;
+            flashlightButton.textContent = 'Turn On Flashlight';
             scanning = false;
         }
         
