@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,13 +12,21 @@
 <body>
     <canvas id="matrix"></canvas>
     <header>
-        <button class="hamburger" onclick="toggleMenu()">☰</button>
+        <button class="hamburger" onclick="toggleMenu()" aria-label="Open navigation menu">☰</button>
         <nav id="mobileNav">
             <ul>
                 <li><a href="#home" onclick="closeMenu()">Home</a></li>
                 <li><a href="#education" onclick="closeMenu()">Education</a></li>
                 <li><a href="#projects" onclick="closeMenu()">Projects</a></li>
                 <li><a href="#contact" onclick="closeMenu()">Contact</a></li>
+
+                <!-- Theme toggle inside nav on all breakpoints -->
+                <li class="theme-toggle-item">
+                    <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle light or dark theme">
+                        <span class="theme-icon" aria-hidden="true">🌙</span>
+                        <span class="theme-label">Dark</span>
+                    </button>
+                </li>
             </ul>
         </nav>
     </header>
@@ -39,7 +47,7 @@
             <div class="education-content">
                 <h3>Texas A&M University-Corpus Christi</h3>
                 <p class="subtitle">Bachelor of Science in Computer Science, GPA: 3.6</p>
-        <p>Relevant completed coursework: Data Structures, Algorithms, Operating Systems, Software Engineering.</p>
+                <p>Relevant completed coursework: Data Structures, Algorithms, Operating Systems, Software Engineering.</p>
             </div>
         </div>
     </section>
