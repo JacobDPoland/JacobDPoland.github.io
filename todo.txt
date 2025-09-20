@@ -1,9 +1,0 @@
-✅Navigation bar
-✅Table(s)
-✅Content section arranged in two columns
-⏹️Some JavaScript content (at least 3, complex enough, functions (not a single alert box). up to you -as it is your personal website- but meaningful functionality must be provided)
-    - ✅ Hamburger menu for mobile
-    - ✅ Light mode?
-    - ⏹️ Hash cracker? Would need to access GPU
-✅Footer section
-✅Hobbies section

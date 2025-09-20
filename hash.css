@@ -1,0 +1,197 @@
+/* Global reset & variables */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+:root {
+  --bg: #0b0b0b;
+  --fg: #eaeaea;
+  --muted: #b8b8b8;
+  --green: #00ff88;
+  --green-dim: #22cc88;
+  --red: #ff4d4d;
+  --card: #121212;
+  --accent: #00ff88;
+  --border: #262626;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+body {
+  margin: 0;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.45;
+}
+
+.wrap { max-width: 1000px; margin: 2rem auto; padding: 0 1rem; }
+header { margin-bottom: 1.5rem; }
+h1 { font-size: clamp(1.6rem, 3.5vw, 2.2rem); margin: 0 0 .5rem; }
+p.lead { color: var(--muted); margin: .25rem 0 0; }
+
+/* Layout */
+.grid { display: grid; gap: 1rem; grid-template-columns: 1fr; }
+@media (min-width: 900px) {
+  .grid { grid-template-columns: 1.2fr .8fr; }
+}
+
+.panel {
+  background: linear-gradient(180deg, #121212, #0f0f0f);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1rem;
+  box-shadow: 0 10px 30px rgba(0,0,0,.35);
+}
+
+/* Dropzone */
+.drop {
+  border: 2px dashed #2a2a2a;
+  border-radius: 12px;
+  padding: 1.25rem;
+  text-align: center;
+  transition: border-color .15s, background .15s;
+}
+.drop.dragover {
+  border-color: var(--green);
+  background: #0e1b16;
+}
+
+/* File row */
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin-top: .75rem;
+  flex-wrap: wrap;
+}
+
+/* Inputs & buttons */
+input[type="file"] { display: none; }
+
+.btn {
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: .6rem .9rem;
+  border-radius: 10px;
+  color: var(--fg);
+  cursor: pointer;
+  transition: transform .05s ease, border-color .15s ease, background .15s;
+  font-weight: 600;
+}
+.btn:hover { border-color: var(--green-dim); }
+.btn:active { transform: translateY(1px); }
+.btn:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+.btn-primary {
+  background: #0f211b;
+  border-color: var(--green-dim);
+  color: var(--green);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  background: #0d0d0d;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: .35rem .6rem;
+  font-size: .85rem;
+  color: var(--muted);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.input {
+  width: 100%;
+  padding: .65rem .75rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #0e0e0e;
+  color: var(--fg);
+  outline: none;
+}
+.input:focus { border-color: var(--green-dim); }
+
+/* Hash rows */
+.mono { font-family: var(--mono); }
+
+.row {
+  display: grid;
+  grid-template-columns: 120px 1fr auto;
+  gap: .5rem .75rem;
+  align-items: start;
+  padding: .6rem .6rem;
+  border-bottom: 1px solid #1b1b1b;
+}
+.row:last-child { border-bottom: none; }
+
+/* Stack the row on narrow screens to prevent overflow */
+@media (max-width: 560px) {
+  .row {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+}
+
+.alg {
+  font-weight: 700;
+  color: var(--accent);
+  font-size: .95rem;
+}
+
+/* Long hashes: horizontal scroll instead of overflow */
+.hash {
+  background: #0c0c0c;
+  border: 1px solid #1f1f1f;
+  border-radius: 8px;
+  padding: .5rem .6rem;
+  min-height: 2.2rem;
+  font-family: var(--mono);
+  white-space: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* Make scrollbars subtle */
+.hash::-webkit-scrollbar { height: 6px; }
+.hash::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 6px; }
+
+.controls {
+  display: flex;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+
+.copy { font-size: .85rem; }
+.tiny { font-size: .82rem; color: var(--muted); }
+
+.pill {
+  padding: .2rem .5rem;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: .85rem;
+}
+
+.ok { color: #031; background: #00ff8833; border: 1px solid var(--green); }
+.bad { color: #310; background: #ff4d4d33; border: 1px solid var(--red); }
+.neutral { color: #999; background: #1a1a1a; border: 1px solid #2a2a2a; }
+
+.hint { color: var(--muted); font-size: .9rem; margin-top: .5rem; }
+footer { margin-top: 1.25rem; color: var(--muted); font-size: .85rem; }
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .drop { transition: none; }
+}

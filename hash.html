@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>File Hash Verifier — SHA-256</title>
+    <link rel="stylesheet" href="hash.css">
+    <script defer src="hash.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>File Hash Verifier</h1>
+    </header>
+
+    <div class="grid">
+      <!-- Left: actions/results -->
+      <section class="panel">
+        <div id="drop" class="drop">
+          <div><strong>Drop a file</strong> here, or</div>
+          <div class="file-row">
+            <label for="file" class="btn btn-primary">Choose file…</label>
+            <input id="file" type="file" />
+            <span id="fileInfo" class="badge">No file selected</span>
+          </div>
+        </div>
+
+        <div style="margin-top:1rem">
+          <label for="expected" class="tiny">Optional: paste an expected SHA256 hash </label>
+          <input id="expected" class="input mono" placeholder="(Expected SHA256 hash)" />
+        </div>
+
+        <div id="status" class="hint" style="margin-top:.75rem"></div>
+
+        <div id="results" style="margin-top:1rem">
+          <!-- Rows inserted here -->
+        </div>
+      </section>
+
+      <!-- Right: tips -->
+      <aside class="panel">
+        <h3 style="margin-top:0">How to use</h3>
+        <ol>
+          <li>Pick or drag a file.</li>
+          <li>(Optional) Paste a known hash. We’ll show if the match is **<strong>True</strong>** / **<strong>False</strong>**</li>
+          <li>Click “Copy” to copy a computed hash.</li>
+        </ol>
+      </aside>
+    </div>
+  </div>
+
+</body>
+</html>

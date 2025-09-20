@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Find & Replace Tool</title>
+  <link rel="stylesheet" href="replace.css">
+  <script defer src="replace.js"></script>
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <h1>Find & Replace</h1>
+    </header>
+
+    <section class="grid">
+      <div class="card">
+        <label for="input">Input</label>
+        <textarea id="input" placeholder="Paste or type your text here..."></textarea>
+        <div class="split">
+          <div>
+            <label for="find">Find</label>
+            <input id="find" type="text" placeholder="Text to find (literal match)" />
+          </div>
+          <div>
+            <label for="replace">Replace</label>
+            <input id="replace" type="text" placeholder="Replacement text" />
+          </div>
+        </div>
+
+        <div class="actions" style="margin-top:12px">
+          <button class="btn" id="runBtn" title="Perform find & replace">Find & Replace</button>
+          <button class="btn secondary" id="swapBtn" title="Swap Find and Replace values">Swap</button>
+          <span class="hint">Replacements: <span class="count" id="count">0</span></span>
+          <span class="error" id="err" role="alert" aria-live="polite"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <label for="output">Output</label>
+        <textarea id="output" readonly placeholder="Your result will appear here..."></textarea>
+        <div class="actions" style="margin-top:12px">
+          <button class="btn" id="copyBtn" title="Copy output to clipboard">Copy Output</button>
+          <span class="hint" id="copyHint" aria-live="polite"></span>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
