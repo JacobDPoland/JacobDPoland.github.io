@@ -1,3 +1,8 @@
+* {
+  box-sizing: border-box;
+}
+
+
 /* General Styles */
 body {
     font-family: Arial, sans-serif;
@@ -136,14 +141,6 @@ display: flex;
 .project h3 {
     margin-bottom: 10px;
 }
-.project a {
-    color: #00adb5;
-    text-decoration: none;
-    transition: color 0.3s;
-}
-.project a:hover {
-    color: #007a8e;
-}
 
 /* Adjust subtitle spacing */
 .project h3 + .subtitle{
@@ -182,17 +179,21 @@ form button:hover {
     color: black;
 }
 
-#contact p a {
-    color: #00adb5;
-}
-
-#contact p a:hover {
-    color: #91f9ff;
-}
-
-#contact p {
+#contact table {
     width: 50%;
     margin: 0.5rem auto;
+    background-color: black;
+    border-collapse: collapse;
+}
+
+td, th {
+  border: 1px solid lightblue;
+  padding: 8px;
+  text-align: center;
+}
+
+th {
+    background-color: #007a8e;
 }
 
 .hamburger {
@@ -210,8 +211,36 @@ form button:hover {
     pointer-events: none; /* Ensure the canvas does not interfere with other elements */
 }
 
+
+footer {
+    position: relative;        
+    z-index: 3;              
+    background-color: #000;   
+    color: #fff;
+    padding: 20px;           
+    text-align: center;      
+}
+
+a {
+    color: #91f9ff;
+}
+a:hover {
+    color: white;
+}
+
+row {
+    display: flex;
+}
+
+.column {
+    width: 50%;
+    margin-left: 1vw;
+    margin-right: 1vw;
+}
+
+
 /* Responsive Design */
-@media (max-width: 768px) {
+@media (max-width: 850px) {
     header {
         padding: 0;
     }
@@ -251,6 +280,8 @@ form button:hover {
         position: absolute;
         right: 20px;
         top: 15px;
+        background-color: black;
+        border-radius: 5px;
     }
 
     .project, .education-item {
@@ -263,5 +294,16 @@ form button:hover {
         width: 100%;
         height: auto;
         border-radius: 5px;
+    }
+
+    row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .column {
+        width: 100%;
+        padding: 20px;
+        margin-top: 20px;
     }
 }

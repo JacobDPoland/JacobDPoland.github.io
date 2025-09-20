@@ -1,5 +1,3 @@
-console.log("script.js loaded");
-
 function toggleMenu() {
     console.log("Toggle menu clicked");
     let nav = document.querySelector('#mobileNav ul');
