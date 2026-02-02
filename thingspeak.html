@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ThingSpeak Viewer (Static)</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --card: #111827;
+    --muted: #6b7280;
+    --text: #e5e7eb;
+    --accent: #22d3ee;
+    --ok: #10b981;
+    --err: #ef4444;
+    --border: #1f2937;
+  }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, "Noto Color Emoji";
+    background: linear-gradient(180deg, #0b1020, var(--bg));
+    color: var(--text);
+  }
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+  h1 { font-weight: 700; letter-spacing: 0.2px; margin: 0 0 12px; }
+  p.caption { margin: 0 0 18px; color: var(--muted); }
+  .card {
+    background: linear-gradient(180deg, #0b1224, var(--card));
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+  .row { display: grid; grid-template-columns: repeat(12, 1fr); gap: 12px; align-items: end; }
+  .col-3 { grid-column: span 3; }
+  .col-2 { grid-column: span 2; }
+  .col-4 { grid-column: span 4; }
+  .col-6 { grid-column: span 6; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  input[type="text"], input[type="number"] {
+    width: 100%; background: #0b1224; color: var(--text);
+    border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
+    outline: none; transition: border .2s ease;
+  }
+  input[type="text"]:focus, input[type="number"]:focus { border-color: var(--accent); }
+  .check {
+    display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 14px;
+  }
+  button {
+    appearance: none; border: 1px solid transparent; border-radius: 12px;
+    padding: 10px 14px; background: var(--accent); color: #042c2f; font-weight: 700;
+    cursor: pointer; transition: transform .05s ease, filter .2s ease; width: 100%;
+  }
+  button:hover { filter: brightness(1.06); }
+  button:active { transform: translateY(1px); }
+  button[disabled] { cursor: progress; filter: grayscale(.5) brightness(.8); }
+  .actions { display: flex; gap: 10px; align-items: stretch; }
+  .actions button.secondary { background: #1f2937; color: var(--text); border-color: var(--border); }
+  .status { margin-top: 10px; font-size: 13px; color: var(--muted); }
+  .status.ok { color: var(--ok); }
+  .status.err { color: var(--err); }
+
+  /* Horizontal scrolling improvements */
+  .table-wrap {
+    margin-top: 18px;
+    overflow-x: auto;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: stable both-edges;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: #0b1224;
+  }
+  table {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: max-content;
+    min-width: max(720px, 100%);
+  }
+  thead th {
+    position: sticky; top: 0; background: #0e162e; color: #cbd5e1;
+    white-space: nowrap;
+    padding: 10px 12px; font-size: 13px; text-align: left; border-bottom: 1px solid var(--border);
+    user-select: none; cursor: pointer;
+  }
+  thead th .hint { color: var(--muted); font-weight: 500; font-size: 12px; margin-left: 8px; }
+  tbody td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #0e1a39;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  tbody tr:nth-child(even) td { background: #0c142b; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; }
+  .pill.ok { background: rgba(16,185,129,.15); color: var(--ok); border: 1px solid rgba(16,185,129,.3); }
+  .pill.err { background: rgba(239,68,68,.15); color: var(--err); border: 1px solid rgba(239,68,68,.3); }
+  .small { font-size: 12px; color: var(--muted); }
+  .sr { position: absolute; left: -9999px; }
+
+  /* Column picker popover */
+  .actions-wrap { position: relative; width: 100%; }
+  .popover {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 0;
+    z-index: 50;
+    width: min(520px, calc(100vw - 48px));
+    background: #0b1224;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 12px 36px rgba(0,0,0,.45);
+    padding: 12px;
+    display: none;
+  }
+  .popover.open { display: block; }
+  .popover-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .popover-title { font-weight: 700; }
+  .popover-sub { color: var(--muted); font-size: 12px; }
+  .popover-actions { display: flex; gap: 8px; }
+  .mini {
+    width: auto;
+    padding: 6px 10px;
+    border-radius: 10px;
+    font-size: 12px;
+    background: #1f2937;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .col-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 10px;
+    max-height: 260px;
+    overflow: auto;
+    padding-right: 4px;
+  }
+  .col-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px solid #0e1a39;
+    border-radius: 12px;
+    background: #0a1022;
+  }
+  .col-item input { transform: translateY(1px); }
+  .col-item .name { font-size: 13px; }
+  .col-item .meta { font-size: 12px; color: var(--muted); }
+  @media (max-width: 720px) {
+    .col-list { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>ThingSpeak Viewer</h1>
+    <p class="caption">Static page: enter <strong>Channel ID</strong> and <strong>Read API Key</strong>, then fetch recent feeds. No libraries required.</p>
+
+    <div class="card" role="region" aria-label="Query form">
+      <div class="row">
+        <div class="col-3">
+          <label for="channelId">Channel ID</label>
+          <input id="channelId" type="text" inputmode="numeric" placeholder="e.g. 123456" autocomplete="off" />
+        </div>
+        <div class="col-4">
+          <label for="apiKey">Read API Key</label>
+          <input id="apiKey" type="text" placeholder="e.g. ABCDEF1234567890" autocomplete="off" />
+        </div>
+        <div class="col-2">
+          <label for="results">Results</label>
+          <input id="results" type="number" min="1" max="8000" value="100" />
+        </div>
+        <div class="col-3">
+          <label class="sr" for="includeLoc">Options</label>
+          <div class="check"><input id="includeLoc" type="checkbox" /> include location</div>
+          <div class="check"><input id="includeStatus" type="checkbox" /> include channel status</div>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:12px">
+        <div class="col-6">
+          <div class="actions-wrap">
+            <div class="actions">
+              <button id="btnFetch">Fetch</button>
+              <button id="btnColumns" class="secondary" title="Show/hide columns">Columns</button>
+              <button id="btnExport" class="secondary" title="Export visible columns to CSV">Export CSV</button>
+              <button id="btnClear" class="secondary" title="Clear table">Clear</button>
+            </div>
+
+            <div id="colPopover" class="popover" role="dialog" aria-label="Column visibility">
+              <div class="popover-head">
+                <div>
+                  <div class="popover-title">Columns</div>
+                  <div class="popover-sub">Show/hide columns (saved per Channel ID)</div>
+                </div>
+                <div class="popover-actions">
+                  <button id="btnShowAll" class="mini" type="button">Show all</button>
+                  <button id="btnHideAll" class="mini" type="button">Hide all</button>
+                  <button id="btnCloseCols" class="mini" type="button">Close</button>
+                </div>
+              </div>
+              <div id="colList" class="col-list"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-6">
+          <div id="status" class="status" aria-live="polite"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="meta" class="small" style="margin:10px 2px 4px;"></div>
+
+    <div class="table-wrap" role="region" aria-label="Results table">
+      <table id="table">
+        <thead><tr id="thead"></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+<script>
+const BASE = "https://api.thingspeak.com/channels/{id}/feeds.json";
+
+const CHICAGO_TZ = "America/Chicago";
+const chicagoFmt = new Intl.DateTimeFormat("en-US", {
+  timeZone: CHICAGO_TZ,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+});
+function formatChicago(iso) {
+  const t = Date.parse(iso);
+  if (!iso || Number.isNaN(t)) return iso || "";
+  return chicagoFmt.format(new Date(t));
+}
+
+const els = {
+  channelId: document.getElementById("channelId"),
+  apiKey: document.getElementById("apiKey"),
+  results: document.getElementById("results"),
+  includeLoc: document.getElementById("includeLoc"),
+  includeStatus: document.getElementById("includeStatus"),
+  btnFetch: document.getElementById("btnFetch"),
+  btnColumns: document.getElementById("btnColumns"),
+  btnShowAll: document.getElementById("btnShowAll"),
+  btnHideAll: document.getElementById("btnHideAll"),
+  btnCloseCols: document.getElementById("btnCloseCols"),
+  colPopover: document.getElementById("colPopover"),
+  colList: document.getElementById("colList"),
+  btnExport: document.getElementById("btnExport"),
+  btnClear: document.getElementById("btnClear"),
+  status: document.getElementById("status"),
+  meta: document.getElementById("meta"),
+  thead: document.getElementById("thead"),
+  tbody: document.getElementById("tbody"),
+};
+
+let curRows = [];
+let curColsAll = [];       // all possible columns for this dataset
+let visibleColIds = new Set(); // IDs of columns currently visible
+let sortState = { key: null, dir: 1 };
+let curChannelId = "";     // for per-channel persistence
+
+// ---------- localStorage helpers ----------
+function storageKeyForCols(channelId) {
+  const id = String(channelId || "").trim();
+  return id ? `thingspeak_hidden_cols_${id}` : `thingspeak_hidden_cols_default`;
+}
+function loadHiddenCols(channelId) {
+  try {
+    const raw = localStorage.getItem(storageKeyForCols(channelId));
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? new Set(arr) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+function saveHiddenCols(channelId, hiddenSet) {
+  try {
+    localStorage.setItem(storageKeyForCols(channelId), JSON.stringify([...hiddenSet]));
+  } catch (err) {
+    console.warn("localStorage write failed:", err);
+  }
+}
+
+// Load saved values from localStorage on page load
+function loadFromStorage() {
+  try {
+    const savedChannelId = localStorage.getItem("thingspeak_channel_id");
+    const savedApiKey = localStorage.getItem("thingspeak_api_key");
+    if (savedChannelId) els.channelId.value = savedChannelId;
+    if (savedApiKey) els.apiKey.value = savedApiKey;
+  } catch (err) {
+    console.warn("localStorage read failed:", err);
+  }
+}
+
+// Save values to localStorage
+function saveToStorage() {
+  try {
+    const id = els.channelId.value.trim();
+    const key = els.apiKey.value.trim();
+    if (id) localStorage.setItem("thingspeak_channel_id", id);
+    if (key) localStorage.setItem("thingspeak_api_key", key);
+  } catch (err) {
+    console.warn("localStorage write failed:", err);
+  }
+}
+
+function setStatus(msg, kind = "") {
+  els.status.textContent = msg || "";
+  els.status.className = "status" + (kind ? " " + kind : "");
+}
+
+function setMeta(channel) {
+  if (!channel || !Object.keys(channel).length) { els.meta.textContent = ""; return; }
+  const name = channel.name || "(unnamed)";
+  const id = channel.id || "";
+  const fields = Array.from({length: 8}, (_,i)=> channel["field"+(i+1)]).filter(Boolean);
+  const updated = channel.updated_at ? formatChicago(channel.updated_at) : "";
+  els.meta.innerHTML = `<span class="small">Channel <strong>#${id}</strong>: <strong>${escapeHtml(name)}</strong> — ${fields.length} field(s) — updated ${escapeHtml(updated)}</span>`;
+}
+
+function escapeHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, m => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+  })[m]);
+}
+
+// Column identity (stable across rebuilds as long as label/key match)
+function colId(col) {
+  return `${String(col.key)}||${String(col.label)}`;
+}
+function getVisibleCols() {
+  // preserve order
+  return curColsAll.filter(c => visibleColIds.has(colId(c)));
+}
+
+async function fetchFeeds() {
+  const id = els.channelId.value.trim();
+  const key = els.apiKey.value.trim();
+  const results = Math.max(1, Math.min(8000, parseInt(els.results.value || "100", 10)));
+  const includeLoc = els.includeLoc.checked;
+  const includeStatus = els.includeStatus.checked;
+
+  if (!/^[0-9]+$/.test(id)) { setStatus("Channel ID must be a positive integer.", "err"); return; }
+  if (!key) { setStatus("Read API key is required.", "err"); return; }
+
+  curChannelId = id;
+
+  // Save to localStorage before fetching
+  saveToStorage();
+
+  els.btnFetch.disabled = true; setStatus("Fetching…");
+  try {
+    const url = BASE.replace("{id}", encodeURIComponent(id)) + "?" + new URLSearchParams({
+      api_key: key,
+      results: String(results),
+      ...(includeLoc ? { location: "true" } : {})
+    }).toString();
+
+    const resp = await fetch(url, { headers: { "Accept": "application/json" } });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
+
+    const data = await resp.json();
+    buildTable(data, { includeLoc, includeStatus });
+    setStatus(`Loaded ${curRows.length} row(s).`, "ok");
+  } catch (err) {
+    console.error(err);
+    setStatus(`Failed to load: ${err.message}`, "err");
+  } finally {
+    els.btnFetch.disabled = false;
+  }
+}
+
+function buildTable(data, opts) {
+  const channel = data.channel || {};
+  const feeds = Array.isArray(data.feeds) ? data.feeds : [];
+  setMeta(channel);
+
+  // Derive columns from channel field names (field1..field8)
+  const cols = [];
+  cols.push({ key: "entry_id", label: "Entry ID" });
+  cols.push({ key: "created_at", label: "Created (Chicago)" });
+
+  for (let i = 1; i <= 8; i++) {
+    const key = "field" + i;
+    const fieldName = String(channel[key] ?? "").trim();
+
+    if (channel[key] || feeds.some(f => f[key] != null)) {
+      cols.push({ key, label: channel[key] ? `${channel[key]} (field${i})` : `field${i}` });
+    }
+  }
+
+  if (opts.includeLoc) {
+    cols.push({ key: "latitude", label: "Latitude" });
+    cols.push({ key: "longitude", label: "Longitude" });
+    cols.push({ key: "elevation", label: "Elevation" });
+  }
+  if (opts.includeStatus) {
+    cols.push({ key: "status", label: "Status" });
+  }
+
+  curColsAll = cols;
+
+  // Prepare rows
+  curRows = feeds.map(f => ({
+    ...f,
+    created_at_raw: f.created_at || "",
+    created_at: f.created_at ? formatChicago(f.created_at) : "",
+    entry_id: f.entry_id ?? "",
+  }));
+
+  // Apply per-channel hidden columns
+  const hidden = loadHiddenCols(curChannelId);
+  visibleColIds = new Set(curColsAll.map(colId).filter(id => !hidden.has(id)));
+
+  // If user hid everything, fall back to showing all (prevents empty table confusion)
+  if (visibleColIds.size === 0 && curColsAll.length) {
+    visibleColIds = new Set(curColsAll.map(colId));
+    saveHiddenCols(curChannelId, new Set());
+  }
+
+  rebuildColumnPicker();
+  renderTable();
+
+  sortState = { key: "created_at", dir: -1 };
+  sortBy("created_at", true);
+}
+
+// Build the popover checklist
+function rebuildColumnPicker() {
+  els.colList.innerHTML = "";
+  const hidden = new Set(curColsAll.map(colId).filter(id => !visibleColIds.has(id)));
+
+  curColsAll.forEach(col => {
+    const id = colId(col);
+    const wrapper = document.createElement("label");
+    wrapper.className = "col-item";
+
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = visibleColIds.has(id);
+
+    const textWrap = document.createElement("div");
+    const name = document.createElement("div");
+    name.className = "name";
+    name.textContent = col.label;
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    meta.textContent = col.key;
+
+    textWrap.appendChild(name);
+    textWrap.appendChild(meta);
+
+    cb.addEventListener("change", () => {
+      if (cb.checked) visibleColIds.add(id);
+      else visibleColIds.delete(id);
+
+      // Prevent hiding all columns
+      if (visibleColIds.size === 0) {
+        visibleColIds.add(id);
+        cb.checked = true;
+        setStatus("You must keep at least one column visible.", "err");
+        setTimeout(() => setStatus("", ""), 1500);
+      }
+
+      const nowHidden = new Set(curColsAll.map(colId).filter(cid => !visibleColIds.has(cid)));
+      saveHiddenCols(curChannelId, nowHidden);
+
+      renderTable();
+    });
+
+    wrapper.appendChild(cb);
+    wrapper.appendChild(textWrap);
+    els.colList.appendChild(wrapper);
+  });
+}
+
+function renderTable() {
+  renderHeader();
+  renderBody(curRows);
+}
+
+function renderHeader() {
+  const cols = getVisibleCols();
+  els.thead.innerHTML = "";
+  cols.forEach(col => {
+    const th = document.createElement("th");
+    th.textContent = col.label;
+    const hint = document.createElement("span");
+    hint.className = "hint";
+    hint.textContent = "↕";
+    th.appendChild(hint);
+    th.addEventListener("click", () => sortBy(col.key));
+    els.thead.appendChild(th);
+  });
+}
+
+function renderBody(rows) {
+  const cols = getVisibleCols();
+  const frag = document.createDocumentFragment();
+
+  rows.forEach(row => {
+    const tr = document.createElement("tr");
+
+    cols.forEach(col => {
+      const td = document.createElement("td");
+      let val = row[col.key];
+      if (val == null) val = "";
+
+      // Replace entire device value if the DEVICE column contains w{x}r anywhere
+      if (/^device\b/i.test(col.label) && typeof val === "string") {
+        const m = val.match(/w(\d+)r/i);
+        const n = m ? parseInt(m[1], 10) : 0;
+        if (n >= 1) val = `worker ${n}`;
+      }
+
+      if (col.key === "status") {
+        const span = document.createElement("span");
+        const txt = String(val);
+        const isErr = /error|fail|bad|denied|invalid/i.test(txt);
+        span.className = "pill " + (isErr ? "err" : "ok");
+        span.textContent = txt || "ok";
+        td.appendChild(span);
+      } else {
+        td.textContent = String(val);
+      }
+
+      tr.appendChild(td);
+    });
+
+    frag.appendChild(tr);
+  });
+
+  els.tbody.innerHTML = "";
+  els.tbody.appendChild(frag);
+}
+
+function sortBy(key, initial = false) {
+  if (!initial) {
+    if (sortState.key === key) sortState.dir *= -1;
+    else { sortState.key = key; sortState.dir = 1; }
+  }
+  const dir = sortState.dir;
+  const rows = [...curRows];
+
+  rows.sort((a, b) => {
+    if (key === "created_at") {
+      return (Date.parse(a.created_at_raw) - Date.parse(b.created_at_raw)) * dir;
+    }
+    return cmp(a[key], b[key]) * dir;
+  });
+
+  renderBody(rows);
+}
+
+function cmp(a, b) {
+  if (typeof a === "string" && /^\d{4}-\d{2}-\d{2}T/.test(a)) {
+    const da = Date.parse(a) || 0;
+    const db = Date.parse(b) || 0;
+    return da - db;
+  }
+  const na = parseFloat(a); const nb = parseFloat(b);
+  const bothNum = !Number.isNaN(na) && !Number.isNaN(nb);
+  if (bothNum) return na - nb;
+  return String(a).localeCompare(String(b));
+}
+
+function exportCsv() {
+  if (!curRows.length) { setStatus("Nothing to export.", "err"); return; }
+
+  const cols = getVisibleCols();
+  const headers = cols.map(c => c.label);
+  const keys = cols.map(c => c.key);
+
+  let csv = "";
+  csv += headers.map(safeCsv).join(",") + "\r\n";
+  for (const r of curRows) {
+    csv += keys.map(k => safeCsv(r[k])).join(",") + "\r\n";
+  }
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  const now = new Date().toISOString().replaceAll(":", "-");
+  a.download = `thingspeak_feeds_${now}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function safeCsv(v) {
+  const s = String(v ?? "");
+  if (/[",\r\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+
+function clearTable() {
+  curRows = [];
+  curColsAll = [];
+  visibleColIds = new Set();
+  sortState = { key: null, dir: 1 };
+  els.thead.innerHTML = "";
+  els.tbody.innerHTML = "";
+  els.meta.textContent = "";
+  els.colList.innerHTML = "";
+  closeCols();
+  setStatus("Cleared.", "ok");
+}
+
+// Popover controls
+function openCols() {
+  if (!curColsAll.length) {
+    setStatus("Load data first to configure columns.", "err");
+    setTimeout(() => setStatus("", ""), 1200);
+    return;
+  }
+  els.colPopover.classList.add("open");
+}
+function closeCols() {
+  els.colPopover.classList.remove("open");
+}
+function toggleCols() {
+  if (els.colPopover.classList.contains("open")) closeCols();
+  else openCols();
+}
+
+els.btnFetch.addEventListener("click", fetchFeeds);
+els.btnExport.addEventListener("click", exportCsv);
+els.btnClear.addEventListener("click", clearTable);
+
+els.btnColumns.addEventListener("click", (e) => {
+  e.stopPropagation();
+  toggleCols();
+});
+els.btnCloseCols.addEventListener("click", closeCols);
+
+els.btnShowAll.addEventListener("click", () => {
+  visibleColIds = new Set(curColsAll.map(colId));
+  saveHiddenCols(curChannelId, new Set());
+  rebuildColumnPicker();
+  renderTable();
+});
+els.btnHideAll.addEventListener("click", () => {
+  // Keep "Entry ID" and "Created" visible as a sensible minimum
+  visibleColIds = new Set();
+  curColsAll.forEach(c => {
+    if (c.key === "entry_id" || c.key === "created_at") visibleColIds.add(colId(c));
+  });
+  const hidden = new Set(curColsAll.map(colId).filter(id => !visibleColIds.has(id)));
+  saveHiddenCols(curChannelId, hidden);
+  rebuildColumnPicker();
+  renderTable();
+});
+
+// Close popover when clicking outside
+document.addEventListener("click", (e) => {
+  if (!els.colPopover.classList.contains("open")) return;
+  const within = els.colPopover.contains(e.target) || els.btnColumns.contains(e.target);
+  if (!within) closeCols();
+});
+
+// Escape closes popover
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeCols();
+});
+
+// Save to localStorage when inputs change
+els.channelId.addEventListener("input", saveToStorage);
+els.apiKey.addEventListener("input", saveToStorage);
+
+[els.channelId, els.apiKey, els.results].forEach(el => {
+  el.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") fetchFeeds();
+  });
+});
+
+// Load saved values when page loads
+loadFromStorage();
+</script>
+</body>
+</html>
