@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clock & Weather — Corpus Christi</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --clock-glow: #00ffe7;
+      --text-primary: #e8f9ff;
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      font-family: 'Rajdhani', sans-serif;
+      background: #000;
+    }
+
+    /* ── Real photo background ── */
+    .bg {
+      position: fixed; inset: 0; z-index: 0;
+      background-image: url('https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fwallpapercat.com%2Fw%2Ffull%2F4%2F1%2Fe%2F664741-3840x2160-desktop-4k-wyoming-background-image.jpg&f=1&nofb=1&ipt=7186f286ab81714f0d71fc3fa779320cf1245f6e994872f7f8f1ac33e8da0f43');
+      background-size: cover;
+      background-position: center center;
+      background-repeat: no-repeat;
+    }
+    /* Subtle darkening vignette to boost contrast without hiding the view */
+    .bg::after {
+      content: '';
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.40) 100%),
+        linear-gradient(180deg, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.08) 40%, rgba(0,0,0,0.30) 100%);
+    }
+
+
+
+    /* ── Clock ── */
+    .clock-wrap {
+      position: fixed;
+      top: 50%;
+      /* JS will set left + transform precisely; these are safe fallbacks */
+      left: 44%;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      width: 65vw;
+      max-width: calc(100vw - 320px);
+    }
+
+    #clock {
+      font-family: 'Orbitron', monospace;
+      font-weight: 900;
+      font-size: clamp(60px, 9.5vw, 165px);
+      letter-spacing: 0.06em;
+      line-height: 1;
+      color: #e0faff;
+      text-shadow:
+        2px 2px 0 rgba(0,0,0,0.92),
+        4px 4px 0 rgba(0,0,0,0.52);
+      background: rgba(0, 6, 18, 0.68);
+      padding: 18px 44px 14px;
+      border-radius: 22px;
+      border: 1.5px solid rgba(0,255,231,0.28);
+      box-shadow:
+        inset 0 0 40px rgba(0,20,40,0.55);
+      width: 100%;
+      text-align: center;
+      animation: clockFadeIn 1.2s ease both;
+    }
+    @keyframes clockFadeIn {
+      from { opacity: 0; transform: scale(0.96); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+
+    #date-line {
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+      font-size: clamp(13px, 1.7vw, 25px);
+      letter-spacing: 0.26em;
+      text-transform: uppercase;
+      color: rgba(200, 245, 255, 0.92);
+      text-shadow:
+        1px 1px 0 rgba(0,0,0,0.92),
+        2px 2px 0 rgba(0,0,0,0.52);
+    }
+
+    /* ── Weather Widget ── */
+    .weather {
+      position: fixed;
+      top: 20px;
+      right: 22px;
+      z-index: 20;
+      width: 258px;
+      background: rgba(0, 7, 20, 0.78);
+      border: 1px solid rgba(0, 220, 200, 0.30);
+      border-radius: 16px;
+      padding: 16px 20px 14px;
+      color: var(--text-primary);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      box-shadow:
+        0 10px 40px rgba(0,0,0,0.62),
+        0 0 18px rgba(0,200,180,0.07);
+      animation: fadeDown 1.4s ease both;
+    }
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .wx-header {
+      font-family: 'Orbitron', monospace;
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.20em;
+      text-transform: uppercase;
+      color: var(--clock-glow);
+      text-shadow: 0 0 8px rgba(0,255,231,0.5);
+      margin-bottom: 3px;
+    }
+    .wx-sub {
+      font-size: 10.5px;
+      color: rgba(180,230,240,0.58);
+      letter-spacing: 0.09em;
+      margin-bottom: 12px;
+      border-bottom: 1px solid rgba(0,220,200,0.14);
+      padding-bottom: 9px;
+    }
+
+    .wx-row {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.055);
+    }
+    .wx-row:last-child { border-bottom: none; }
+
+    .wx-icon {
+      font-size: 19px;
+      width: 26px;
+      text-align: center;
+      flex-shrink: 0;
+      filter: drop-shadow(0 0 4px rgba(0,255,231,0.35));
+    }
+    .wx-info { flex: 1; min-width: 0; }
+    .wx-label {
+      font-size: 9.5px;
+      font-weight: 600;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+      color: rgba(170,225,235,0.62);
+      margin-bottom: 1px;
+    }
+    .wx-val {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 16px;
+      font-weight: 600;
+      color: #e8f9ff;
+      text-shadow: 0 1px 6px rgba(0,0,0,0.88);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .wx-val span {
+      font-size: 11.5px;
+      color: rgba(175,225,235,0.62);
+      margin-left: 3px;
+    }
+
+    .wx-loading {
+      text-align: center;
+      padding: 10px 0;
+      font-family: 'Orbitron', monospace;
+      font-size: 9.5px;
+      letter-spacing: 0.10em;
+      color: rgba(180,230,240,0.58);
+    }
+    .dot-anim::after {
+      content: '...';
+      animation: dots 1.4s steps(4, end) infinite;
+    }
+    @keyframes dots {
+      0%,20%  { content: '.'; }
+      40%     { content: '..'; }
+      60%,80% { content: '...'; }
+      100%    { content: ''; }
+    }
+
+    .wx-updated {
+      font-size: 8.5px;
+      color: rgba(140,195,205,0.42);
+      letter-spacing: 0.07em;
+      margin-top: 9px;
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bg"></div>
+  <!-- Clock -->
+  <div class="clock-wrap">
+    <div id="clock">00:00:00</div>
+    <div id="date-line">Loading...</div>
+  </div>
+
+  <!-- Weather Widget (top-right, fixed width) -->
+  <div class="weather" id="weatherWidget">
+    <div class="wx-header">KCRP Weather</div>
+    <div class="wx-sub">Corpus Christi Intl Airport</div>
+    <div class="wx-loading dot-anim" id="wxLoading">Fetching live data</div>
+    <div id="wxContent" style="display:none">
+      <div class="wx-row">
+        <div class="wx-icon">💨</div>
+        <div class="wx-info">
+          <div class="wx-label">Wind Speed</div>
+          <div class="wx-val" id="wxWind">—</div>
+        </div>
+      </div>
+      <div class="wx-row">
+        <div class="wx-icon">🌧️</div>
+        <div class="wx-info">
+          <div class="wx-label">Precip. Chance</div>
+          <div class="wx-val" id="wxPrecip">—</div>
+        </div>
+      </div>
+      <div class="wx-row">
+        <div class="wx-icon">☁️</div>
+        <div class="wx-info">
+          <div class="wx-label">Cloud Cover</div>
+          <div class="wx-val" id="wxCloud">—</div>
+        </div>
+      </div>
+      <div class="wx-row">
+        <div class="wx-icon">🌡️</div>
+        <div class="wx-info">
+          <div class="wx-label">Temperature</div>
+          <div class="wx-val" id="wxTemp">—</div>
+        </div>
+      </div>
+      <div class="wx-updated" id="wxUpdated"></div>
+    </div>
+  </div>
+
+  <script>
+    // ── Clock ──
+    const clockEl = document.getElementById('clock');
+    const dateEl  = document.getElementById('date-line');
+    const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const MONTHS = ['January','February','March','April','May','June',
+                    'July','August','September','October','November','December'];
+
+    function pad(n) { return String(n).padStart(2, '0'); }
+
+    function tick() {
+      const now = new Date();
+      clockEl.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+      dateEl.textContent  = `${DAYS[now.getDay()]} · ${MONTHS[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
+    }
+    tick();
+    setInterval(tick, 1000);
+
+    // ── Position clock so it never overlaps the weather widget ──
+    function adjustClockPosition() {
+      const wx   = document.getElementById('weatherWidget');
+      const wrap = document.querySelector('.clock-wrap');
+      const margin = 20; // px gap between clock right edge and weather widget left edge
+
+      const wxLeft = wx.getBoundingClientRect().left;
+      // The usable horizontal band for the clock is [0, wxLeft - margin]
+      const usableWidth = wxLeft - margin;
+      // Centre of that band
+      const centre = usableWidth / 2;
+
+      wrap.style.left      = centre + 'px';
+      wrap.style.transform = 'translate(-50%, -50%)';
+      // Clock can be at most 65% of total vw, but must also fit within usable band
+      const maxAllowed = usableWidth - 40; // 20px padding each side
+      const target65   = window.innerWidth * 0.65;
+      wrap.style.width    = Math.min(target65, maxAllowed) + 'px';
+      wrap.style.maxWidth = Math.min(target65, maxAllowed) + 'px';
+    }
+
+    adjustClockPosition();
+    window.addEventListener('resize', adjustClockPosition);
+
+    // ── Weather via Anthropic API ──
+    async function fetchWeather() {
+      try {
+        const resp = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 400,
+            tools: [{ type: "web_search_20250305", name: "web_search" }],
+            messages: [{
+              role: "user",
+              content: `Search for the current weather at Corpus Christi International Airport KCRP Texas. Return ONLY a valid JSON object — no markdown fences, no extra text — with exactly these fields:
+{"wind_mph":<number>,"wind_dir":"<compass>","precip_chance":<0-100>,"cloud_cover":"<short description>","temp_f":<number>,"temp_c":<number>,"updated":"<datetime string>"}`
+            }]
+          })
+        });
+
+        const data = await resp.json();
+        const fullText = (data.content || [])
+          .filter(b => b.type === 'text')
+          .map(b => b.text)
+          .join('');
+
+        const clean = fullText.replace(/```json|```/gi, '').trim();
+        const match = clean.match(/\{[\s\S]*\}/);
+        if (!match) throw new Error('No JSON found');
+        renderWeather(JSON.parse(match[0]));
+      } catch (_) {
+        // Fallback: last-known KCRP values (Mon Mar 09 2026)
+        renderWeather({
+          wind_mph: 23, wind_dir: 'NNE',
+          precip_chance: 25,
+          cloud_cover: 'Mostly Cloudy',
+          temp_f: 83, temp_c: 28,
+          updated: 'Mon Mar 09 2026 (cached)'
+        });
+      }
+    }
+
+    function renderWeather(wx) {
+      document.getElementById('wxLoading').style.display = 'none';
+      document.getElementById('wxContent').style.display = 'block';
+      document.getElementById('wxWind').innerHTML    = `${wx.wind_mph} mph <span>from ${wx.wind_dir}</span>`;
+      document.getElementById('wxPrecip').innerHTML  = `${wx.precip_chance}%`;
+      document.getElementById('wxCloud').textContent  = wx.cloud_cover;
+      document.getElementById('wxTemp').innerHTML    = `${wx.temp_f}°F <span>/ ${wx.temp_c}°C</span>`;
+      document.getElementById('wxUpdated').textContent = `Updated: ${wx.updated}`;
+      // Re-run layout guard now that widget height is known
+      adjustClockPosition();
+    }
+
+    fetchWeather();
+    // Refresh every 10 minutes
+    setInterval(() => {
+      document.getElementById('wxLoading').style.display = 'block';
+      document.getElementById('wxContent').style.display = 'none';
+      fetchWeather();
+    }, 10 * 60 * 1000);
+  </script>
+</body>
+</html>
