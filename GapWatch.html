@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+  font-src https://fonts.gstatic.com;
+  img-src 'self' data:;
+  connect-src https://script.google.com https://script.googleusercontent.com;
+  base-uri 'none';
+  form-action 'none';
+  object-src 'none';
+" />
+<title>Gap Watch — sensor telemetry</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<!-- JSZip for "download all" — optional; per-sensor downloads work without it.
+     Pinned with Subresource Integrity so a tampered CDN file is refused. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
+        integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG"
+        crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
+<style>
+  :root{
+    --bg:#EBEFED;
+    --surface:#FFFFFF;
+    --ink:#0F1E1A;
+    --ink-soft:#54635D;
+    --ink-faint:#889590;
+    --line:#D5DEDA;
+    --line-strong:#C2CCC7;
+    --accent:#0B6E5A;
+    --accent-deep:#085644;
+    --ok:#1E8E6A;
+    --alert:#B4530C;
+    --alert-bg:#FBEEE2;
+    --alert-line:#EAC8A8;
+    --down:#B42318;
+    --down-bg:#FBEAE7;
+    --down-line:#E9B6AE;
+    --focus:#0B6E5A;
+    --radius:14px;
+    --radius-sm:9px;
+  }
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 500px at 50% -200px, #F4F8F6 0%, var(--bg) 60%) no-repeat,
+      var(--bg);
+    color:var(--ink);
+    font-family:"IBM Plex Sans",system-ui,sans-serif;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:880px;margin:0 auto;padding:48px 22px 96px;}
+
+  /* ---- Header ---- */
+  .eyebrow{
+    font-family:"IBM Plex Mono",monospace;
+    font-size:12px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--accent);font-weight:600;margin:0 0 14px;
+    display:flex;align-items:center;gap:10px;
+  }
+  .eyebrow::before{
+    content:"";width:30px;height:1px;background:var(--accent);display:inline-block;opacity:.6;
+  }
+  h1{
+    font-family:"Space Grotesk",sans-serif;
+    font-weight:700;font-size:clamp(38px,7vw,60px);
+    line-height:.98;letter-spacing:-.02em;margin:0;color:var(--ink);
+  }
+  .lede{
+    margin:18px 0 0;max-width:54ch;color:var(--ink-soft);font-size:16.5px;
+  }
+
+  /* ---- Cards ---- */
+  .card{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:22px;
+    margin-top:22px;
+    box-shadow:0 1px 0 rgba(15,30,26,.02), 0 14px 30px -26px rgba(15,30,26,.35);
+  }
+  .card-head{
+    display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+    margin-bottom:16px;flex-wrap:wrap;
+  }
+  .card-title{
+    font-family:"IBM Plex Mono",monospace;
+    font-size:12px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--ink-soft);font-weight:600;margin:0;
+  }
+  .card-note{font-size:12.5px;color:var(--ink-soft);margin:0;}
+
+  /* ---- Form bits ---- */
+  label.field{display:block;margin-bottom:14px;}
+  label.field:last-child{margin-bottom:0;}
+  .field > span{
+    display:block;font-size:12.5px;font-weight:600;color:var(--ink);
+    margin-bottom:6px;letter-spacing:.01em;
+  }
+  input[type=text],input[type=password],input[type=number],input[type=datetime-local]{
+    width:100%;padding:11px 13px;
+    font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--ink);
+    background:#FBFDFC;border:1px solid var(--line-strong);border-radius:var(--radius-sm);
+    transition:border-color .12s ease, box-shadow .12s ease;
+  }
+  input::placeholder{color:#A6B0AB;}
+  input:focus-visible{
+    outline:none;border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(11,110,90,.16);
+  }
+  .key-row{position:relative;}
+  .key-row input{padding-right:64px;}
+  .ghost-btn{
+    position:absolute;right:6px;top:50%;transform:translateY(-50%);
+    border:1px solid var(--line-strong);background:#fff;color:var(--ink-soft);
+    font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;
+    padding:5px 9px;border-radius:7px;cursor:pointer;text-transform:uppercase;
+  }
+  .ghost-btn:hover{color:var(--ink);border-color:var(--ink-soft);}
+
+  .check{
+    display:flex;align-items:center;gap:9px;margin-top:14px;
+    font-size:13.5px;color:var(--ink-soft);cursor:pointer;user-select:none;
+  }
+  .check input{width:16px;height:16px;accent-color:var(--accent);}
+  .check.dim{opacity:.45;}
+  .check.dim input{cursor:not-allowed;}
+
+  /* ---- Buttons ---- */
+  .btn{
+    appearance:none;cursor:pointer;border:none;
+    font-family:"IBM Plex Sans",sans-serif;font-weight:600;font-size:14.5px;
+    padding:12px 20px;border-radius:var(--radius-sm);
+    display:inline-flex;align-items:center;gap:9px;
+    transition:transform .06s ease, background .14s ease, box-shadow .14s ease;
+  }
+  .btn:active{transform:translateY(1px);}
+  .btn-primary{background:var(--accent);color:#fff;box-shadow:0 8px 18px -10px rgba(11,110,90,.7);}
+  .btn-primary:hover{background:var(--accent-deep);}
+  .btn-primary:disabled{background:#9FB6AF;box-shadow:none;cursor:not-allowed;}
+  .btn-secondary{background:#EFF3F1;color:var(--ink);border:1px solid var(--line-strong);}
+  .btn-secondary:hover{background:#E7EDEA;}
+  .btn-link{
+    background:none;border:none;color:var(--accent);font-weight:600;cursor:pointer;
+    font-family:"IBM Plex Sans",sans-serif;font-size:13.5px;padding:6px 2px;
+  }
+  .btn-link:hover{text-decoration:underline;}
+  .btn:focus-visible,.ghost-btn:focus-visible,.btn-link:focus-visible{
+    outline:2px solid var(--focus);outline-offset:2px;
+  }
+
+  /* ---- Connected state ---- */
+  .connected{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:space-between;}
+  .connected .who{display:flex;align-items:center;gap:11px;min-width:0;}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--ok);flex:none;box-shadow:0 0 0 4px rgba(30,142,106,.16);}
+  .conn-meta{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--ink);min-width:0;}
+  .conn-meta small{display:block;color:var(--ink-soft);font-size:11.5px;letter-spacing:.04em;}
+  .conn-actions{display:flex;gap:6px;flex:none;}
+
+  /* ---- Query bar ---- */
+  .window-modes{display:flex;flex-direction:column;gap:10px;margin-bottom:18px;}
+  .mode{
+    display:flex;align-items:center;gap:11px;
+    border:1px solid var(--line);border-radius:var(--radius-sm);
+    padding:12px 14px;cursor:pointer;transition:border-color .12s ease, background .12s ease;
+  }
+  .mode[data-active="true"]{border-color:var(--accent);background:#F4FAF8;}
+  .mode input[type=radio]{width:16px;height:16px;accent-color:var(--accent);flex:none;}
+  .mode .mode-body{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:14px;}
+  .mode .inline-num{width:78px;text-align:center;}
+  .mode .inline-dt{width:auto;}
+  .mode-label{font-weight:500;}
+  .mode-suffix{color:var(--ink-soft);font-family:"IBM Plex Mono",monospace;font-size:13px;}
+  .run-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+
+  details.advanced{margin-top:6px;}
+  details.advanced summary{
+    cursor:pointer;font-family:"IBM Plex Mono",monospace;font-size:12px;
+    letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);
+    list-style:none;display:inline-flex;align-items:center;gap:7px;padding:6px 0;
+  }
+  details.advanced summary::-webkit-details-marker{display:none;}
+  details.advanced summary::before{content:"+";font-weight:600;color:var(--accent);}
+  details.advanced[open] summary::before{content:"–";}
+  .adv-grid{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;}
+  .adv-grid label.field{margin:0;}
+  .adv-grid input{width:120px;}
+
+  /* ---- Status / results ---- */
+  #status{margin-top:22px;}
+  .banner{
+    border-radius:var(--radius);padding:16px 18px;margin-top:22px;
+    font-size:14.5px;display:flex;gap:13px;align-items:flex-start;
+  }
+  .banner-down{background:var(--down-bg);border:1px solid var(--down-line);color:#7A1A12;}
+  .banner-ok{background:#E9F5F0;border:1px solid #BFE3D6;color:#0B5E48;}
+  .banner-err{background:var(--alert-bg);border:1px solid var(--alert-line);color:#7A370A;}
+  .banner .pip{flex:none;margin-top:3px;}
+  .pip{width:10px;height:10px;border-radius:50%;}
+  .pip-down{background:var(--down);animation:pulse 1.6s ease-in-out infinite;}
+  .pip-ok{background:var(--ok);}
+  .pip-err{background:var(--alert);}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(180,35,24,.5);}50%{box-shadow:0 0 0 6px rgba(180,35,24,0);}}
+  .banner h3{margin:0 0 6px;font-size:15px;font-weight:700;}
+  .banner ul{margin:6px 0 0;padding-left:0;list-style:none;}
+  .banner li{font-family:"IBM Plex Mono",monospace;font-size:13px;margin-top:4px;}
+  .banner pre{
+    margin:8px 0 0;font-family:"IBM Plex Mono",monospace;font-size:12px;
+    white-space:pre-wrap;word-break:break-word;background:rgba(0,0,0,.04);
+    padding:9px 11px;border-radius:8px;max-height:220px;overflow:auto;
+  }
+
+  .summary-line{
+    font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--ink-soft);
+    margin-top:20px;padding-bottom:4px;
+  }
+  .summary-line b{color:var(--ink);font-weight:600;}
+
+  .downloads{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;}
+
+  /* sensor inventory */
+  .sensors{margin-top:18px;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;}
+  .sensor-row{
+    display:flex;align-items:center;gap:12px;justify-content:space-between;
+    padding:11px 16px;border-top:1px solid var(--line);
+  }
+  .sensor-row:first-child{border-top:none;}
+  .sensor-row .name{font-family:"IBM Plex Mono",monospace;font-size:13.5px;font-weight:500;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .sensor-row .right{display:flex;align-items:center;gap:14px;flex:none;}
+  .sensor-row .count{font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--ink-soft);}
+  .stat{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-family:"IBM Plex Mono",monospace;}
+  .stat.up{color:var(--ok);} .stat.down{color:var(--down);}
+
+  /* gap table */
+  .table-wrap{margin-top:20px;border:1px solid var(--line);border-radius:var(--radius);overflow-x:auto;}
+  table{width:100%;border-collapse:collapse;font-size:13px;min-width:620px;}
+  thead th{
+    text-align:left;font-family:"IBM Plex Mono",monospace;font-weight:600;
+    font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);
+    padding:12px 14px;background:#F6F9F8;border-bottom:1px solid var(--line);white-space:nowrap;
+  }
+  tbody td{padding:11px 14px;border-bottom:1px solid var(--line);
+    font-family:"IBM Plex Mono",monospace;color:var(--ink);white-space:nowrap;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr.ongoing{background:var(--alert-bg);}
+  tbody tr.ongoing td:first-child{box-shadow:inset 3px 0 0 var(--alert);}
+  .tag{font-family:"IBM Plex Mono",monospace;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600;}
+  .tag-yes{background:var(--alert);color:#fff;}
+  .tag-no{background:#E7EDEA;color:var(--ink-soft);}
+
+  .hint{font-size:12.5px;color:var(--ink-soft);margin-top:10px;}
+  .hint code{font-family:"IBM Plex Mono",monospace;background:#E7EDEA;padding:1px 5px;border-radius:5px;font-size:12px;}
+
+  footer{margin-top:40px;font-size:12px;color:var(--ink-soft);font-family:"IBM Plex Mono",monospace;letter-spacing:.02em;}
+  footer a{color:var(--accent);}
+
+  .hidden{display:none !important;}
+  .spin{
+    width:15px;height:15px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;
+    border-radius:50%;animation:rot .7s linear infinite;
+  }
+  @keyframes rot{to{transform:rotate(360deg);}}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation:none !important;transition:none !important;}
+  }
+  @media (max-width:560px){
+    .wrap{padding:34px 16px 80px;}
+    .connected{align-items:flex-start;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Sensor telemetry</p>
+    <h1>Gap&nbsp;Watch</h1>
+    <p class="lede">Pull readings from your Apps Script endpoint, flag missing data, and catch any sensor that has gone dark — straight from the browser, no install.</p>
+  </header>
+
+  <!-- CONNECTION -->
+  <section class="card" id="connCard">
+    <div class="card-head">
+      <p class="card-title">Connection</p>
+      <p class="card-note">Stored on this device only — enter once.</p>
+    </div>
+
+    <!-- entry form -->
+    <div id="connForm">
+      <label class="field">
+        <span>Deployment ID</span>
+        <input type="text" id="deploymentId" autocomplete="off" spellcheck="false"
+               placeholder="AKfycb… (from your /macros/s/<ID>/exec URL)" />
+      </label>
+      <label class="field">
+        <span>API key</span>
+        <span class="key-row">
+          <input type="password" id="apiKey" autocomplete="off" spellcheck="false" placeholder="your key" />
+          <button type="button" class="ghost-btn" id="toggleKey">Show</button>
+        </span>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="remember" checked />
+        Remember on this device
+      </label>
+      <div style="margin-top:18px;">
+        <button class="btn btn-primary" id="saveConn">Save connection</button>
+      </div>
+    </div>
+
+    <!-- connected summary -->
+    <div id="connInfo" class="connected hidden">
+      <div class="who">
+        <span class="dot"></span>
+        <div class="conn-meta" id="connMeta"></div>
+      </div>
+      <div class="conn-actions">
+        <button class="btn btn-secondary" id="changeConn">Change</button>
+        <button class="btn-link" id="forgetConn">Forget</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- QUERY -->
+  <section class="card" id="queryCard">
+    <div class="card-head">
+      <p class="card-title">Time window</p>
+      <p class="card-note">All times are US Central.</p>
+    </div>
+
+    <div class="window-modes">
+      <label class="mode" data-mode="hours" data-active="true">
+        <input type="radio" name="winmode" value="hours" checked />
+        <span class="mode-body">
+          <span class="mode-label">Last</span>
+          <input type="number" id="hours" class="inline-num" min="0.1" step="0.1" value="24" />
+          <span class="mode-suffix">hours</span>
+        </span>
+      </label>
+      <label class="mode" data-mode="since" data-active="false">
+        <input type="radio" name="winmode" value="since" />
+        <span class="mode-body">
+          <span class="mode-label">Since</span>
+          <input type="datetime-local" id="since" class="inline-dt" step="1" disabled />
+          <span class="mode-suffix">Central</span>
+        </span>
+      </label>
+    </div>
+
+    <label class="check dim" id="rememberSinceRow" style="margin:0 0 18px;">
+      <input type="checkbox" id="rememberSince" disabled />
+      Remember this start time
+    </label>
+
+    <div class="run-row">
+      <button class="btn btn-primary" id="fetchBtn" disabled>
+        <span id="fetchLabel">Fetch data</span>
+      </button>
+      <details class="advanced">
+        <summary>Gap tuning</summary>
+        <div class="adv-grid">
+          <label class="field">
+            <span>Gap threshold (min)</span>
+            <input type="number" id="gapThreshold" min="1" step="1" value="75" />
+          </label>
+          <label class="field">
+            <span>Expected interval (min)</span>
+            <input type="number" id="expectedInterval" min="1" step="1" value="62" />
+          </label>
+        </div>
+      </details>
+    </div>
+    <p class="hint" id="connectFirst">Save a connection above to enable fetching.</p>
+  </section>
+
+  <!-- STATUS / RESULTS -->
+  <div id="status"></div>
+  <div id="results"></div>
+
+  <footer>
+    Gap Watch · runs entirely in your browser · credentials never leave this device
+  </footer>
+</div>
+
+<script>
+"use strict";
+
+/* ====================================================================
+   Constants & state
+==================================================================== */
+const CENTRAL = "America/Chicago";
+const LS = {
+  dep: "gapwatch.deploymentId",
+  key: "gapwatch.apiKey",
+  remember: "gapwatch.remember",
+  since: "gapwatch.since",
+  sinceRemember: "gapwatch.sinceRemember"
+};
+
+const state = {
+  deploymentId: "",
+  apiKey: "",
+  lastData: null,   // raw endpoint payload
+  lastGaps: null,   // computed gap rows
+  runStamp: ""      // filename-safe Central timestamp
+};
+
+/* ====================================================================
+   Central-time helpers (mirror the Python script's America/Chicago logic)
+==================================================================== */
+function centralParts(date){
+  const dtf = new Intl.DateTimeFormat("en-US",{
+    timeZone:CENTRAL, hour12:false,
+    year:"numeric", month:"2-digit", day:"2-digit",
+    hour:"2-digit", minute:"2-digit", second:"2-digit"
+  });
+  const m = {};
+  for(const p of dtf.formatToParts(date)) m[p.type]=p.value;
+  if(m.hour === "24") m.hour = "00";
+  return {y:m.year, mo:m.month, d:m.day, h:m.hour, mi:m.minute, s:m.second};
+}
+
+// "MM/DD/YYYY HH:MM:SS" in Central — matches Python strftime output.
+function formatCentral(date){
+  const p = centralParts(date);
+  return `${p.mo}/${p.d}/${p.y} ${p.h}:${p.mi}:${p.s}`;
+}
+
+function centralOffsetMs(utcMs){
+  const p = centralParts(new Date(utcMs));
+  const asUTC = Date.UTC(+p.y, +p.mo-1, +p.d, +p.h, +p.mi, +p.s);
+  return asUTC - utcMs;
+}
+
+// Interpret a wall-clock time as Central and return a real instant (handles DST).
+function centralWallToInstant(y,mo,d,h,mi,s){
+  const guess = Date.UTC(y,mo-1,d,h,mi,s);
+  const off1 = centralOffsetMs(guess);
+  let inst = guess - off1;
+  const off2 = centralOffsetMs(inst);
+  if(off2 !== off1) inst = guess - off2;
+  return new Date(inst);
+}
+
+// Row "Timestamp" arrives as ISO 8601 UTC. Treat zone-less values as UTC.
+function parseRowTimestamp(value){
+  let v = String(value).trim();
+  const hasZone = /([zZ]|[+\-]\d{2}:?\d{2})$/.test(v);
+  if(!hasZone) v += "Z";
+  const d = new Date(v);
+  if(isNaN(d.getTime())) throw new Error("unparseable timestamp");
+  return d;
+}
+
+// "YYYYMMDDTHHMMSS_CT" for filenames.
+function runStampCentral(date){
+  const p = centralParts(date);
+  return `${p.y}${p.mo}${p.d}T${p.h}${p.mi}${p.s}_CT`;
+}
+
+/* ====================================================================
+   Gap detection (port of find_gaps)
+==================================================================== */
+function estimateMissing(minutes, expectedInterval){
+  return Math.max(0, Math.round(minutes / expectedInterval) - 1);
+}
+const round1 = m => Math.round(m * 10) / 10;
+
+function findGaps(data, now, sinceDt, thresholdMin, expectedMin){
+  const thrMs = thresholdMin * 60000;
+  const gaps = [];
+  const sheets = data.sheets || {};
+
+  for(const [name, sheet] of Object.entries(sheets)){
+    const rows = sheet.rows || [];
+    const ts = [];
+    for(const row of rows){
+      const t = row.Timestamp;
+      if(!t) continue;
+      try{ ts.push(parseRowTimestamp(t)); }catch(e){ /* skip */ }
+    }
+    ts.sort((a,b)=>a-b);
+
+    // historical gaps between consecutive readings
+    for(let i=1;i<ts.length;i++){
+      const deltaMs = ts[i]-ts[i-1];
+      if(deltaMs >= thrMs){
+        const minutes = deltaMs/60000;
+        gaps.push({
+          sensor:name, _start:ts[i-1],
+          gap_start:formatCentral(ts[i-1]), gap_end:formatCentral(ts[i]),
+          duration_minutes:round1(minutes),
+          estimated_missing_readings:estimateMissing(minutes,expectedMin),
+          ongoing:"no"
+        });
+      }
+    }
+
+    // ongoing downtime: latest reading -> now (or whole window if no rows)
+    if(ts.length){
+      const last = ts[ts.length-1];
+      const deltaMs = now - last;
+      if(deltaMs >= thrMs){
+        const minutes = deltaMs/60000;
+        gaps.push({
+          sensor:name, _start:last,
+          gap_start:formatCentral(last), gap_end:formatCentral(now),
+          duration_minutes:round1(minutes),
+          estimated_missing_readings:estimateMissing(minutes,expectedMin),
+          ongoing:"yes"
+        });
+      }
+    } else if(sinceDt){
+      const deltaMs = now - sinceDt;
+      if(deltaMs >= thrMs){
+        const minutes = deltaMs/60000;
+        gaps.push({
+          sensor:name, _start:sinceDt,
+          gap_start:formatCentral(sinceDt), gap_end:formatCentral(now),
+          duration_minutes:round1(minutes),
+          estimated_missing_readings:estimateMissing(minutes,expectedMin),
+          ongoing:"yes"
+        });
+      }
+    }
+  }
+
+  gaps.sort((a,b)=>a._start - b._start);
+  return gaps;
+}
+
+/* ====================================================================
+   CSV building (port of save_csvs / save_gap_csv)
+==================================================================== */
+function csvCell(v){
+  if(v===null||v===undefined) v="";
+  v = String(v);
+  if(/[",\r\n]/.test(v)) v = '"' + v.replace(/"/g,'""') + '"';
+  return v;
+}
+function toCsv(headers, rows){
+  const out = [headers.map(csvCell).join(",")];
+  for(const r of rows) out.push(headers.map(h=>csvCell(r[h])).join(","));
+  return out.join("\r\n") + "\r\n";
+}
+
+function safeFilename(name){
+  let cleaned = Array.from(String(name))
+    .map(c => /[A-Za-z0-9\-_]/.test(c) ? c : "_").join("");
+  cleaned = cleaned.replace(/^_+|_+$/g,"");
+  return cleaned || "sheet";
+}
+
+// Rewrite each sheet's Timestamp column from UTC to Central, like the script.
+function sheetToCsv(sheet){
+  const headers = sheet.headers || [];
+  const rows = (sheet.rows || []).map(row=>{
+    const ts = row.Timestamp;
+    if(ts){
+      try{ return {...row, Timestamp: formatCentral(parseRowTimestamp(ts))}; }
+      catch(e){ /* leave as-is */ }
+    }
+    return row;
+  });
+  return toCsv(headers, rows);
+}
+
+const GAP_HEADERS = ["sensor","gap_start","gap_end","duration_minutes","estimated_missing_readings","ongoing"];
+function gapsToCsv(gaps){
+  return toCsv(GAP_HEADERS, gaps);
+}
+
+function downloadBlob(filename, text){
+  const blob = new Blob([text], {type:"text/csv;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1500);
+}
+
+/* ====================================================================
+   Fetch (port of fetch_data)
+==================================================================== */
+async function fetchData(deploymentId, apiKey, sinceParam){
+  const url = `https://script.google.com/macros/s/${encodeURIComponent(deploymentId)}/exec`
+            + `?api_key=${encodeURIComponent(apiKey)}&since=${encodeURIComponent(sinceParam)}`;
+  let res;
+  try{
+    res = await fetch(url, {method:"GET", redirect:"follow", referrerPolicy:"no-referrer"});
+  }catch(err){
+    throw new FetchError(
+      "Couldn't reach the endpoint",
+      "The request was blocked by the browser, usually a CORS or network issue. " +
+      "Make sure the Apps Script web app is deployed with access set to “Anyone,” " +
+      "and that you're online."
+    );
+  }
+  if(!res.ok){
+    throw new FetchError(`Endpoint returned HTTP ${res.status}`,
+      "Check the deployment ID and API key, then try again.");
+  }
+  let json;
+  try{ json = await res.json(); }
+  catch(e){
+    throw new FetchError("Endpoint didn't return JSON",
+      "The response wasn't valid JSON — double-check the deployment ID points at the data endpoint.");
+  }
+  if(json.status !== "success"){
+    throw new FetchError("Endpoint returned an error", JSON.stringify(json, null, 2), true);
+  }
+  return json;
+}
+class FetchError extends Error{
+  constructor(title, detail, isJson){ super(title); this.title=title; this.detail=detail; this.isJson=!!isJson; }
+}
+
+/* ====================================================================
+   DOM
+==================================================================== */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c =>
+  ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+const el = {
+  connForm:$("connForm"), connInfo:$("connInfo"), connMeta:$("connMeta"),
+  deploymentId:$("deploymentId"), apiKey:$("apiKey"), remember:$("remember"),
+  saveConn:$("saveConn"), changeConn:$("changeConn"), forgetConn:$("forgetConn"),
+  toggleKey:$("toggleKey"),
+  hours:$("hours"), since:$("since"),
+  rememberSince:$("rememberSince"), rememberSinceRow:$("rememberSinceRow"),
+  gapThreshold:$("gapThreshold"), expectedInterval:$("expectedInterval"),
+  fetchBtn:$("fetchBtn"), fetchLabel:$("fetchLabel"), connectFirst:$("connectFirst"),
+  status:$("status"), results:$("results")
+};
+
+/* ---- Connection persistence ---- */
+function maskTail(s, n=4){
+  if(!s) return "";
+  if(s.length <= n) return "••••";
+  return "••••" + s.slice(-n);
+}
+function showConnected(){
+  el.connForm.classList.add("hidden");
+  el.connInfo.classList.remove("hidden");
+  el.connMeta.innerHTML =
+    `Connected` +
+    `<small>endpoint ${esc(maskTail(state.deploymentId))} &nbsp;·&nbsp; key ${esc(maskTail(state.apiKey))}</small>`;
+  el.fetchBtn.disabled = false;
+  el.connectFirst.classList.add("hidden");
+}
+function showForm(){
+  el.connInfo.classList.add("hidden");
+  el.connForm.classList.remove("hidden");
+  el.deploymentId.value = state.deploymentId;
+  el.apiKey.value = state.apiKey;
+  el.fetchBtn.disabled = true;
+  el.connectFirst.classList.remove("hidden");
+  el.deploymentId.focus();
+}
+
+function loadStored(){
+  try{
+    const remember = localStorage.getItem(LS.remember) !== "false";
+    el.remember.checked = remember;
+    const dep = localStorage.getItem(LS.dep) || "";
+    const key = localStorage.getItem(LS.key) || "";
+    if(dep && key){
+      state.deploymentId = dep; state.apiKey = key;
+      showConnected();
+      return;
+    }
+  }catch(e){ /* storage unavailable */ }
+  showForm();
+}
+
+el.saveConn.addEventListener("click", ()=>{
+  const dep = el.deploymentId.value.trim();
+  const key = el.apiKey.value.trim();
+  if(!dep || !key){
+    renderError(new FetchError("Add both fields",
+      "Enter your deployment ID and API key, then save."));
+    (dep ? el.apiKey : el.deploymentId).focus();
+    return;
+  }
+  state.deploymentId = dep; state.apiKey = key;
+  try{
+    if(el.remember.checked){
+      localStorage.setItem(LS.dep, dep);
+      localStorage.setItem(LS.key, key);
+      localStorage.setItem(LS.remember, "true");
+    }else{
+      localStorage.removeItem(LS.dep);
+      localStorage.removeItem(LS.key);
+      localStorage.setItem(LS.remember, "false");
+    }
+  }catch(e){ /* ignore */ }
+  el.status.innerHTML = "";
+  showConnected();
+});
+
+el.changeConn.addEventListener("click", showForm);
+el.forgetConn.addEventListener("click", ()=>{
+  state.deploymentId = ""; state.apiKey = "";
+  try{
+    localStorage.removeItem(LS.dep);
+    localStorage.removeItem(LS.key);
+  }catch(e){}
+  el.deploymentId.value = ""; el.apiKey.value = "";
+  showForm();
+});
+
+el.toggleKey.addEventListener("click", ()=>{
+  const showing = el.apiKey.type === "text";
+  el.apiKey.type = showing ? "password" : "text";
+  el.toggleKey.textContent = showing ? "Show" : "Hide";
+});
+
+/* ---- Window mode toggle ---- */
+document.querySelectorAll('input[name="winmode"]').forEach(r=>{
+  r.addEventListener("change", ()=>{
+    const mode = document.querySelector('input[name="winmode"]:checked').value;
+    document.querySelectorAll(".mode").forEach(m=>{
+      m.dataset.active = (m.dataset.mode === mode) ? "true" : "false";
+    });
+    el.hours.disabled = mode !== "hours";
+    el.since.disabled = mode !== "since";
+    const sinceMode = mode === "since";
+    el.rememberSince.disabled = !sinceMode;
+    el.rememberSinceRow.classList.toggle("dim", !sinceMode);
+  });
+});
+
+/* ---- Remember the Since date ---- */
+function saveSincePref(){
+  try{
+    if(el.rememberSince.checked){
+      localStorage.setItem(LS.sinceRemember, "true");
+      if(el.since.value) localStorage.setItem(LS.since, el.since.value);
+    }else{
+      localStorage.setItem(LS.sinceRemember, "false");
+      localStorage.removeItem(LS.since);
+    }
+  }catch(e){ /* storage unavailable */ }
+}
+el.rememberSince.addEventListener("change", saveSincePref);
+el.since.addEventListener("change", ()=>{ if(el.rememberSince.checked) saveSincePref(); });
+
+function restoreSincePref(){
+  let remember=false, saved="";
+  try{
+    remember = localStorage.getItem(LS.sinceRemember) === "true";
+    saved = localStorage.getItem(LS.since) || "";
+  }catch(e){ return; }
+  el.rememberSince.checked = remember;
+  if(remember && saved){
+    el.since.value = saved;
+    const r = document.querySelector('input[name="winmode"][value="since"]');
+    r.checked = true;
+    r.dispatchEvent(new Event("change")); // switches UI into Since mode
+  }
+}
+// clicking inside a mode row selects its radio
+document.querySelectorAll(".mode").forEach(m=>{
+  m.addEventListener("click", e=>{
+    if(e.target.tagName === "INPUT" && e.target.type !== "radio") return;
+    const radio = m.querySelector('input[type=radio]');
+    if(!radio.checked){ radio.checked = true; radio.dispatchEvent(new Event("change")); }
+  });
+});
+
+/* ---- Resolve the requested window into a since instant ---- */
+function resolveWindow(now){
+  const mode = document.querySelector('input[name="winmode"]:checked').value;
+  if(mode === "since"){
+    const v = el.since.value; // "YYYY-MM-DDTHH:MM" or with ":SS"
+    if(!v) throw new FetchError("Pick a start time",
+      "Choose a Central start time, or switch to “Last … hours.”");
+    const [datePart, timePart] = v.split("T");
+    const [y,mo,d] = datePart.split("-").map(Number);
+    const [h,mi,s] = timePart.split(":").map(Number);
+    return centralWallToInstant(y, mo, d, h, mi, s || 0);
+  }
+  let hours = parseFloat(el.hours.value);
+  if(!(hours > 0)) hours = 24;
+  return new Date(now.getTime() - hours*3600*1000);
+}
+
+/* ====================================================================
+   Run
+==================================================================== */
+el.fetchBtn.addEventListener("click", run);
+
+async function run(){
+  if(!state.deploymentId || !state.apiKey) return;
+
+  let now, sinceDt;
+  try{
+    now = new Date();
+    sinceDt = resolveWindow(now);
+  }catch(err){
+    renderError(err); return;
+  }
+
+  const thresholdMin = Math.max(1, parseInt(el.gapThreshold.value,10) || 75);
+  const expectedMin = Math.max(1, parseInt(el.expectedInterval.value,10) || 62);
+  const sinceParam = formatCentral(sinceDt);
+
+  setBusy(true);
+  el.status.innerHTML = "";
+  el.results.innerHTML = "";
+
+  try{
+    const data = await fetchData(state.deploymentId, state.apiKey, sinceParam);
+    const gaps = findGaps(data, now, sinceDt, thresholdMin, expectedMin);
+
+    state.lastData = data;
+    state.lastGaps = gaps;
+    state.runStamp = runStampCentral(now);
+
+    renderResults({data, gaps, now, sinceDt, thresholdMin, expectedMin});
+  }catch(err){
+    renderError(err);
+  }finally{
+    setBusy(false);
+  }
+}
+
+function setBusy(busy){
+  el.fetchBtn.disabled = busy;
+  el.fetchLabel.innerHTML = busy
+    ? '<span class="spin" aria-hidden="true"></span> Fetching…'
+    : "Fetch data";
+}
+
+/* ====================================================================
+   Render
+==================================================================== */
+function renderError(err){
+  const title = err.title || "Something went wrong";
+  const detail = err.detail || err.message || "";
+  const body = err.isJson
+    ? `<pre>${esc(detail)}</pre>`
+    : `<div>${esc(detail)}</div>`;
+  el.status.innerHTML =
+    `<div class="banner banner-err">
+       <span class="pip pip-err" aria-hidden="true"></span>
+       <div><h3>${esc(title)}</h3>${body}</div>
+     </div>`;
+}
+
+function renderResults({data, gaps, now, sinceDt, thresholdMin, expectedMin}){
+  const sheets = data.sheets || {};
+  const names = Object.keys(sheets);
+  const totalRows = names.reduce((n,k)=> n + (sheets[k].row_count ?? (sheets[k].rows||[]).length), 0);
+  const ongoing = gaps.filter(g=>g.ongoing==="yes");
+  const historical = gaps.length - ongoing.length;
+
+  let html = "";
+
+  // headline banner
+  if(ongoing.length){
+    html += `<div class="banner banner-down">
+      <span class="pip pip-down" aria-hidden="true"></span>
+      <div>
+        <h3>${ongoing.length} sensor${ongoing.length>1?"s":""} currently dark</h3>
+        <div>No readings in the last ${thresholdMin}+ minutes:</div>
+        <ul>${ongoing.map(g=>
+          `<li>${esc(g.sensor)} — dark since ${esc(g.gap_start)} (~${g.duration_minutes} min)</li>`
+        ).join("")}</ul>
+      </div>
+    </div>`;
+  } else {
+    html += `<div class="banner banner-ok">
+      <span class="pip pip-ok" aria-hidden="true"></span>
+      <div><h3>All sensors reporting</h3>
+      <div>No sensor has gone silent past the ${thresholdMin}-minute threshold.</div></div>
+    </div>`;
+  }
+
+  // summary line
+  html += `<div class="summary-line">
+    Fetched since <b>${esc(formatCentral(sinceDt))}</b> ·
+    <b>${names.length}</b> sensor${names.length===1?"":"s"} ·
+    <b>${totalRows.toLocaleString()}</b> rows ·
+    as of <b>${esc(formatCentral(now))}</b>
+  </div>`;
+
+  // downloads
+  html += `<div class="downloads">
+    <button class="btn btn-primary" id="dlZip">Download CSVs (.zip)</button>
+    ${gaps.length ? `<button class="btn btn-secondary" id="dlGap">Download gap report</button>` : ""}
+  </div>
+  <p class="hint">The ZIP holds one CSV per sensor (with <code>Timestamp</code> in Central time)${gaps.length?` plus <code>gap_report.csv</code>`:``}.</p>`;
+
+  // sensor inventory
+  if(names.length){
+    html += `<div class="sensors">` + names.map(name=>{
+      const count = sheets[name].row_count ?? (sheets[name].rows||[]).length;
+      const isDown = ongoing.some(g=>g.sensor===name);
+      return `<div class="sensor-row">
+        <span class="name" title="${esc(name)}">${esc(name)}</span>
+        <span class="right">
+          <span class="count">${Number(count).toLocaleString()} rows</span>
+          <span class="stat ${isDown?"down":"up"}">${isDown?"● dark":"● live"}</span>
+          <button class="btn-link dl-one" data-sensor="${esc(name)}">CSV</button>
+        </span>
+      </div>`;
+    }).join("") + `</div>`;
+  }
+
+  // gap table
+  if(gaps.length){
+    html += `<div class="table-wrap"><table>
+      <thead><tr>
+        <th>Sensor</th><th>Gap start</th><th>Gap end</th>
+        <th>Duration (min)</th><th>Est. missing</th><th>Ongoing</th>
+      </tr></thead><tbody>` +
+      gaps.map(g=>`<tr class="${g.ongoing==="yes"?"ongoing":""}">
+        <td>${esc(g.sensor)}</td>
+        <td>${esc(g.gap_start)}</td>
+        <td>${esc(g.gap_end)}</td>
+        <td>${g.duration_minutes}</td>
+        <td>${g.estimated_missing_readings}</td>
+        <td><span class="tag ${g.ongoing==="yes"?"tag-yes":"tag-no"}">${g.ongoing}</span></td>
+      </tr>`).join("") +
+      `</tbody></table></div>
+      <p class="hint">${gaps.length} gap${gaps.length===1?"":"s"} ≥ ${thresholdMin} min — ${ongoing.length} ongoing, ${historical} historical. Expected interval ≈ ${expectedMin} min.</p>`;
+  } else {
+    html += `<p class="hint">No gaps ≥ ${thresholdMin} minutes found.</p>`;
+  }
+
+  el.results.innerHTML = html;
+
+  // wire downloads
+  const zipBtn = $("dlZip");
+  if(zipBtn) zipBtn.addEventListener("click", downloadAllZip);
+  const gapBtn = $("dlGap");
+  if(gapBtn) gapBtn.addEventListener("click", ()=> downloadBlob("gap_report.csv", gapsToCsv(state.lastGaps)));
+  document.querySelectorAll(".dl-one").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      const name = b.dataset.sensor;
+      const sheet = state.lastData.sheets[name];
+      downloadBlob(`${safeFilename(name)}.csv`, sheetToCsv(sheet));
+    });
+  });
+}
+
+async function downloadAllZip(){
+  const data = state.lastData, gaps = state.lastGaps;
+  if(!data) return;
+
+  // Fallback if JSZip failed to load: download each CSV individually.
+  if(typeof JSZip === "undefined"){
+    for(const [name, sheet] of Object.entries(data.sheets||{})){
+      downloadBlob(`${safeFilename(name)}.csv`, sheetToCsv(sheet));
+    }
+    if(gaps && gaps.length) downloadBlob("gap_report.csv", gapsToCsv(gaps));
+    return;
+  }
+
+  const zip = new JSZip();
+  const folderName = `sheet_data_${state.runStamp}`;
+  const folder = zip.folder(folderName);
+  for(const [name, sheet] of Object.entries(data.sheets||{})){
+    folder.file(`${safeFilename(name)}.csv`, sheetToCsv(sheet));
+  }
+  if(gaps && gaps.length) folder.file("gap_report.csv", gapsToCsv(gaps));
+
+  const blob = await zip.generateAsync({type:"blob"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `${folderName}.zip`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1500);
+}
+
+/* ---- boot ---- */
+loadStored();
+restoreSincePref();
+</script>
+</body>
+</html>
