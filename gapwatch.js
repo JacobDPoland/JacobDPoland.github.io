@@ -17,7 +17,8 @@ const state = {
   apiKey: "",
   lastData: null,   // raw endpoint payload
   lastGaps: null,   // computed gap rows
-  runStamp: ""      // filename-safe Central timestamp
+  runStamp: "",     // filename-safe Central timestamp
+  workerCount: 1
 };
 
 /* ====================================================================
@@ -81,12 +82,22 @@ function estimateMissing(minutes, expectedInterval){
 }
 const round1 = m => Math.round(m * 10) / 10;
 
+function isTrackedTab(name){
+  const lower = name.toLowerCase().trim();
+  if(lower === "controller") return true;
+  const m = lower.match(/^worker\s+(\d+)$/);
+  if(!m) return false;
+  const n = parseInt(m[1], 10);
+  return n >= 1 && n <= state.workerCount;
+}
+
 function findGaps(data, now, sinceDt, thresholdMin, expectedMin){
   const thrMs = thresholdMin * 60000;
   const gaps = [];
   const sheets = data.sheets || {};
 
   for(const [name, sheet] of Object.entries(sheets)){
+    if(!isTrackedTab(name)) continue;
     const rows = sheet.rows || [];
     const ts = [];
     for(const row of rows){
@@ -244,6 +255,7 @@ const el = {
   toggleKey:$("toggleKey"),
   hours:$("hours"), since:$("since"),
   rememberSince:$("rememberSince"), rememberSinceRow:$("rememberSinceRow"),
+  workerCount:$("workerCount"),
   gapThreshold:$("gapThreshold"), expectedInterval:$("expectedInterval"),
   fetchBtn:$("fetchBtn"), fetchLabel:$("fetchLabel"), connectFirst:$("connectFirst"),
   status:$("status"), results:$("results")
@@ -417,6 +429,7 @@ async function run(){
     renderError(err); return;
   }
 
+  state.workerCount = Math.max(0, parseInt(el.workerCount.value, 10) || 0);
   const thresholdMin = Math.max(1, parseInt(el.gapThreshold.value,10) || 75);
   const expectedMin = Math.max(1, parseInt(el.expectedInterval.value,10) || 62);
   const sinceParam = formatCentral(sinceDt);
@@ -466,7 +479,7 @@ function renderError(err){
 
 function renderResults({data, gaps, now, sinceDt, thresholdMin, expectedMin}){
   const sheets = data.sheets || {};
-  const names = Object.keys(sheets);
+  const names = Object.keys(sheets).filter(isTrackedTab);
   const totalRows = names.reduce((n,k)=> n + (sheets[k].row_count ?? (sheets[k].rows||[]).length), 0);
   const ongoing = gaps.filter(g=>g.ongoing==="yes");
   const historical = gaps.length - ongoing.length;
@@ -568,6 +581,7 @@ async function downloadAllZip(){
   // Fallback if JSZip failed to load: download each CSV individually.
   if(typeof JSZip === "undefined"){
     for(const [name, sheet] of Object.entries(data.sheets||{})){
+      if(!isTrackedTab(name)) continue;
       downloadBlob(`${safeFilename(name)}.csv`, sheetToCsv(sheet));
     }
     if(gaps && gaps.length) downloadBlob("gap_report.csv", gapsToCsv(gaps));
@@ -578,6 +592,7 @@ async function downloadAllZip(){
   const folderName = `sheet_data_${state.runStamp}`;
   const folder = zip.folder(folderName);
   for(const [name, sheet] of Object.entries(data.sheets||{})){
+    if(!isTrackedTab(name)) continue;
     folder.file(`${safeFilename(name)}.csv`, sheetToCsv(sheet));
   }
   if(gaps && gaps.length) folder.file("gap_report.csv", gapsToCsv(gaps));
