@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Morse Light Reader</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; font-family: system-ui, sans-serif; background: #111; color: #eee; }
+  .app { max-width: 1100px; margin: 0 auto; }
+  #view { position: relative; width: 100%; background: #000; touch-action: none; cursor: crosshair; }
+  video { width: 100%; display: block; }
+  #roi { position: absolute; border: 3px solid #f33; box-sizing: border-box;
+         pointer-events: none; border-radius: 6px; }
+  main { padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  button { font-size: 1.1rem; padding: 12px 18px; border-radius: 10px; border: 0;
+           background: #2a6; color: #fff; cursor: pointer; }
+  button.sec { background: #444; }
+  select { font-size: 1rem; padding: 10px; border-radius: 8px; border: 0; max-width: 100%; }
+  input[type=number] { width: 5em; font-size: 1.1rem; padding: 8px; border-radius: 8px; border: 0; }
+  #meter { height: 14px; background: #333; border-radius: 7px; position: relative; overflow: hidden; }
+  #level { height: 100%; width: 0; background: #844; }
+  #thr { position: absolute; top: 0; bottom: 0; width: 2px; background: #fff; }
+  #swatch { width: 28px; height: 28px; border-radius: 50%; border: 2px solid #555; background: #000; }
+  .label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: #999; margin-bottom: -6px; }
+  .box { white-space: pre-wrap; word-break: break-word; overflow-y: auto;
+         background: #1c1c1c; padding: 12px; border-radius: 10px; }
+  #morseOut { font: 600 1.5rem/1.4 ui-monospace, monospace; color: #fc0;
+              min-height: 2.5em; max-height: 30vh; }
+  #out { font: 600 2rem/1.3 ui-monospace, monospace; min-height: 3em; max-height: 35vh; }
+  small { color: #999; }
+
+  /* Desktop: video left, controls right */
+  @media (min-width: 900px) {
+    .app { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; padding: 16px; align-items: start; }
+    #view { border-radius: 12px; overflow: hidden; }
+    main { padding: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div id="view">
+    <video id="video" playsinline muted></video>
+    <div id="roi"></div>
+  </div>
+  <main>
+    <div class="row">
+      <button id="start">Start camera</button>
+      <select id="camera" hidden></select>
+      <button id="clear" class="sec">Clear</button>
+      <div id="swatch"></div>
+      <small id="status">Idle</small>
+    </div>
+    <div class="label">Red level</div>
+    <div id="meter"><div id="level"></div><div id="thr"></div></div>
+    <div class="label">Morse</div>
+    <div id="morseOut" class="box"></div>
+    <div class="label">Decoded</div>
+    <div id="out" class="box"></div>
+    <div class="row">
+      <label>Unit (ms) <input id="unit" type="number" value="240" min="50" step="50"></label>
+      <label><input id="auto" type="checkbox"> Auto-adjust</label>
+    </div>
+    <small>Click or tap the video to move the red box onto the LEDs.</small>
+  </main>
+</div>
+
+<script>
+const DEFAULT_UNIT = 240;   // must match firmware UNIT_MS
+const ROI_SIZE     = 0.2;   // box size as fraction of frame width
+const TOP_FRACTION = 0.25;  // average only the reddest 25% of pixels in the box
+const MIN_CONTRAST = 20;    // minimum red-level swing to trust the signal
+
+const MORSE = {
+  ".-":"A", "-...":"B", "-.-.":"C", "-..":"D", ".":"E", "..-.":"F", "--.":"G",
+  "....":"H", "..":"I", ".---":"J", "-.-":"K", ".-..":"L", "--":"M", "-.":"N",
+  "---":"O", ".--.":"P", "--.-":"Q", ".-.":"R", "...":"S", "-":"T", "..-":"U",
+  "...-":"V", ".--":"W", "-..-":"X", "-.--":"Y", "--..":"Z",
+  "-----":"0", ".----":"1", "..---":"2", "...--":"3", "....-":"4",
+  ".....":"5", "-....":"6", "--...":"7", "---..":"8", "----.":"9"
+};
+
+const $ = id => document.getElementById(id);
+const video = $("video"), roiBox = $("roi"), unitInput = $("unit"), autoBox = $("auto");
+
+// Region of interest center, as fraction of frame
+let roiX = 0.5, roiY = 0.5;
+
+// Small offscreen canvas for pixel sampling
+const canvas = document.createElement("canvas");
+const ctx = canvas.getContext("2d", { willReadFrequently: true });
+let scores = new Float32Array(0);  // reused buffer for per-pixel red scores
+
+// Signal state
+let lo = null, hi = null, lastT = 0;
+let lit = false, onStart = 0, offStart = 0;
+let unit = DEFAULT_UNIT;
+let symbols = "";     // dots/dashes of the letter in progress
+let morse = "";       // completed Morse transcript
+let text = "";        // completed decoded text
+let spaceDone = false, lineDone = false;
+
+unitInput.value = DEFAULT_UNIT;
+
+function placeRoi() {
+  const w = video.clientWidth, h = video.clientHeight, s = ROI_SIZE * w;
+  Object.assign(roiBox.style, {
+    width: s + "px", height: s + "px",
+    left: (roiX * w - s / 2) + "px", top: (roiY * h - s / 2) + "px"
+  });
+}
+
+$("view").addEventListener("pointerdown", e => {
+  const r = video.getBoundingClientRect();
+  roiX = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+  roiY = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
+  placeRoi();
+  lo = hi = null;  // relearn range at new spot
+});
+
+// Keep the box aligned whenever the video changes size (rotation, window resize, layout)
+new ResizeObserver(placeRoi).observe(video);
+
+unitInput.addEventListener("change", () => { unit = Number(unitInput.value) || DEFAULT_UNIT; });
+
+// Turning auto-adjust off snaps back to the firmware value
+autoBox.addEventListener("change", () => {
+  if (!autoBox.checked) {
+    unit = DEFAULT_UNIT;
+    unitInput.value = DEFAULT_UNIT;
+  }
+});
+
+$("clear").onclick = () => { text = ""; morse = ""; symbols = ""; render(); };
+
+// ---------- Camera ----------
+let stream = null, running = false;
+
+async function startCamera(deviceId) {
+  if (stream) stream.getTracks().forEach(t => t.stop());
+
+  const constraints = deviceId
+    ? { deviceId: { exact: deviceId } }
+    : { facingMode: { ideal: "environment" } };   // back camera on phones, default webcam on desktop
+  constraints.width = { ideal: 640 };
+  constraints.height = { ideal: 480 };
+
+  stream = await navigator.mediaDevices.getUserMedia({ video: constraints, audio: false });
+  video.srcObject = stream;
+  await video.play();
+
+  canvas.width = 160;
+  canvas.height = Math.round(160 * video.videoHeight / video.videoWidth);
+  lo = hi = null;
+  placeRoi();
+
+  await listCameras(stream.getVideoTracks()[0].getSettings().deviceId);
+
+  if (!running) { running = true; requestAnimationFrame(tick); }
+}
+
+// Labels are only available after permission is granted, so list after starting
+async function listCameras(currentId) {
+  const cams = (await navigator.mediaDevices.enumerateDevices())
+    .filter(d => d.kind === "videoinput");
+  const sel = $("camera");
+  sel.innerHTML = "";
+  cams.forEach((c, i) => {
+    const o = document.createElement("option");
+    o.value = c.deviceId;
+    o.textContent = c.label || `Camera ${i + 1}`;
+    o.selected = c.deviceId === currentId;
+    sel.appendChild(o);
+  });
+  sel.hidden = cams.length < 2;
+}
+
+$("camera").onchange = e =>
+  startCamera(e.target.value).catch(err => $("status").textContent = "Camera error: " + err.message);
+
+$("start").onclick = async () => {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    $("status").textContent = "Camera needs HTTPS (or localhost)";
+    return;
+  }
+  try {
+    await startCamera();
+    $("start").hidden = true;
+    try { await navigator.wakeLock.request("screen"); } catch (_) {}
+  } catch (err) {
+    $("status").textContent = "Camera error: " + err.message;
+  }
+};
+
+// ---------- Red detection ----------
+// Score = how much redder a pixel is than gray. White light scores ~0, red LEDs score high.
+function redLevel(data) {
+  const n = data.length / 4;
+  if (scores.length !== n) scores = new Float32Array(n);
+  for (let i = 0, j = 0; i < data.length; i += 4, j++) {
+    scores[j] = Math.max(0, data[i] - (data[i + 1] + data[i + 2]) / 2);
+  }
+  // Average only the reddest pixels so a thin strip in the box is not diluted
+  scores.sort();
+  const k = Math.max(1, Math.round(n * TOP_FRACTION));
+  let sum = 0;
+  for (let j = n - k; j < n; j++) sum += scores[j];
+  return sum / k;
+}
+
+// ---------- Decoding ----------
+function handlePulse(dur) {
+  if (dur < unit * 0.3) return;  // too short, treat as noise
+  if (dur < unit * 2) {
+    symbols += ".";
+    if (autoBox.checked) unit = unit * 0.8 + dur * 0.2;
+  } else {
+    symbols += "-";
+    if (autoBox.checked) unit = unit * 0.8 + (dur / 3) * 0.2;
+  }
+  if (document.activeElement !== unitInput) unitInput.value = Math.round(unit);
+}
+
+function handleGap(gap) {
+  if (symbols && gap > unit * 2) {          // letter gap (3 units)
+    text  += MORSE[symbols] || "?";
+    morse += symbols + " ";
+    symbols = "";
+  }
+  if (!spaceDone && gap > unit * 5 && text && !/\s$/.test(text)) {   // word gap (7 units)
+    text  += " ";
+    morse = morse.trimEnd() + " / ";
+    spaceDone = true;
+  }
+  if (!lineDone && gap > unit * 9 && text && !text.endsWith("\n")) { // message repeat pause
+    text  = text.trimEnd() + "\n";
+    morse = morse.replace(/[ \/]+$/, "") + "\n";
+    lineDone = true;
+  }
+}
+
+function render() {
+  const m = $("morseOut"), o = $("out");
+  m.textContent = morse + symbols;   // in-progress letter shows live at the end
+  o.textContent = text;
+  m.scrollTop = m.scrollHeight;
+  o.scrollTop = o.scrollHeight;
+}
+
+// ---------- Main loop ----------
+function tick(now) {
+  const dt = lastT ? now - lastT : 16;
+  lastT = now;
+
+  // Sample the ROI
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const s = Math.max(2, Math.round(ROI_SIZE * canvas.width));
+  const x0 = Math.min(canvas.width - s, Math.max(0, Math.round(roiX * canvas.width - s / 2)));
+  const y0 = Math.min(canvas.height - s, Math.max(0, Math.round(roiY * canvas.height - s / 2)));
+  const v = redLevel(ctx.getImageData(x0, y0, s, s).data);
+
+  // Adaptive range, slowly forgets over ~10 s
+  if (lo === null) { lo = hi = v; }
+  const a = Math.min(1, dt / 10000);
+  lo = v < lo ? v : lo + (v - lo) * a;
+  hi = v > hi ? v : hi - (hi - v) * a;
+  const contrast = hi - lo;
+  const onT = lo + contrast * 0.6, offT = lo + contrast * 0.4;  // hysteresis
+
+  let next = lit;
+  if (contrast < MIN_CONTRAST) next = false;
+  else if (!lit && v > onT) next = true;
+  else if (lit && v < offT) next = false;
+
+  if (next !== lit) {
+    if (next) { onStart = now; spaceDone = lineDone = false; }
+    else      { handlePulse(now - onStart); offStart = now; }
+    lit = next;
+  }
+  if (!lit && offStart) handleGap(now - offStart);
+
+  // UI feedback
+  $("level").style.width = (v / 255 * 100) + "%";
+  $("level").style.background = lit ? "#f33" : "#844";
+  $("thr").style.left = (onT / 255 * 100) + "%";
+  $("swatch").style.background = lit ? "#f22" : "#000";
+  $("status").textContent = contrast < MIN_CONTRAST
+    ? "No red signal, aim at the LEDs"
+    : `Unit ${Math.round(unit)} ms${autoBox.checked ? " (auto)" : ""}`;
+
+  render();
+  requestAnimationFrame(tick);
+}
+</script>
+</body>
+</html>
