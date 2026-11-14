@@ -23,7 +23,8 @@
   #level { height: 100%; width: 0; background: #844; }
   #thr { position: absolute; top: 0; bottom: 0; width: 2px; background: #fff; }
   #swatch { width: 28px; height: 28px; border-radius: 50%; border: 2px solid #555; background: #000; }
-  .label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: #999; margin-bottom: -6px; }
+  .label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: #999; }
+  .section { display: flex; flex-direction: column; gap: 6px; }
   .box { white-space: pre-wrap; word-break: break-word; overflow-y: auto;
          background: #1c1c1c; padding: 12px; border-radius: 10px; }
   #morseOut { font: 600 1.5rem/1.4 ui-monospace, monospace; color: #fc0;
@@ -31,11 +32,15 @@
   #out { font: 600 2rem/1.3 ui-monospace, monospace; min-height: 3em; max-height: 35vh; }
   small { color: #999; }
 
-  /* Desktop: video left, controls right */
+  /* Mobile: decoded text above Morse */
+  .outputs { display: flex; flex-direction: column-reverse; gap: 12px; }
+
+  /* Desktop: video left, controls right, Morse above decoded */
   @media (min-width: 900px) {
     .app { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; padding: 16px; align-items: start; }
     #view { border-radius: 12px; overflow: hidden; }
     main { padding: 0; }
+    .outputs { flex-direction: column; }
   }
 </style>
 </head>
@@ -53,14 +58,22 @@
       <div id="swatch"></div>
       <small id="status">Idle</small>
     </div>
-    <div class="label">Red level</div>
-    <div id="meter"><div id="level"></div><div id="thr"></div></div>
-    <div class="label">Morse</div>
-    <div id="morseOut" class="box"></div>
-    <div class="label">Decoded</div>
-    <div id="out" class="box"></div>
+    <div class="section">
+      <div class="label">Red level</div>
+      <div id="meter"><div id="level"></div><div id="thr"></div></div>
+    </div>
+    <div class="outputs">
+      <div class="section">
+        <div class="label">Morse</div>
+        <div id="morseOut" class="box"></div>
+      </div>
+      <div class="section">
+        <div class="label">Decoded</div>
+        <div id="out" class="box"></div>
+      </div>
+    </div>
     <div class="row">
-      <label>Unit (ms) <input id="unit" type="number" value="240" min="50" step="50"></label>
+      <label>Unit (ms) <input id="unit" type="number" value="240" min="50" step="10"></label>
       <label><input id="auto" type="checkbox"> Auto-adjust</label>
     </div>
     <small>Click or tap the video to move the red box onto the LEDs.</small>
@@ -234,7 +247,7 @@ function handleGap(gap) {
     morse = morse.trimEnd() + " / ";
     spaceDone = true;
   }
-  if (!lineDone && gap > unit * 9 && text && !text.endsWith("\n")) { // message repeat pause
+  if (!lineDone && gap > unit * 9 && text && !text.endsWith("\n")) { // message gap
     text  = text.trimEnd() + "\n";
     morse = morse.replace(/[ \/]+$/, "") + "\n";
     lineDone = true;
